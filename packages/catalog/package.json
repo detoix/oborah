@@ -1,0 +1,14 @@
+{
+  "name": "@obora/catalog",
+  "version": "1.0.0",
+  "description": "Spatial planning catalog module",
+  "main": "src/index.tsx",
+  "types": "src/index.tsx",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "react": "^19.0.0",
+    "lucide-react": "^0.475.0"
+  }
+}
