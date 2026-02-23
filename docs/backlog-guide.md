@@ -4,14 +4,13 @@
 
 Every app in the portfolio has a single markdown file in `/backlog/`. These files serve as the source of truth for each app's status, configuration, performance, and notes.
 
-Files are organized by format:
+The backlog is flat; all files are stored directly in the root of the folder:
+
 ```
 /backlog
-  /configurators    ← Design your X apps
-  /visualizers      ← See X on your location apps
-  /calculators      ← Analyze your X apps
-  /explorers        ← Discover X around you apps
-  /games            ← Play with X apps
+  deck.md
+  solar-roof.md
+  marble-roll.md
 ```
 
 ## Backlog entry structure
@@ -88,21 +87,22 @@ kill_reason: ""
 
 ## Status values
 
-| Status | Meaning |
-|---|---|
-| `idea` | In the backlog, not started |
-| `assets` | Building/collecting assets for this site |
-| `dev` | Engine config written, in development |
+| Status    | Meaning                                        |
+| --------- | ---------------------------------------------- |
+| `idea`    | In the backlog, not started                    |
+| `assets`  | Building/collecting assets for this site       |
+| `dev`     | Engine config written, in development          |
 | `testing` | Deployed to preview, testing on mobile/desktop |
-| `live` | Deployed to production, indexed |
-| `paused` | Live but not being maintained, underperforming |
-| `killed` | Taken down, record kept for reference |
+| `live`    | Deployed to production, indexed                |
+| `paused`  | Live but not being maintained, underperforming |
+| `killed`  | Taken down, record kept for reference          |
 
 ## Priority
 
 0 = next to build. Higher numbers = later. Unprioritized ideas have no priority set.
 
 Priority is reassessed monthly based on:
+
 - Search volume of target keywords
 - CPC estimate (higher = more ad revenue potential)
 - Asset overlap with existing sites (more reuse = faster to build)
@@ -111,6 +111,7 @@ Priority is reassessed monthly based on:
 ## Monthly update process
 
 On the first of each month:
+
 1. Pull traffic data from analytics
 2. Pull revenue data from AdSense
 3. Update `monthly_visits` and `monthly_revenue` in each live site's frontmatter
@@ -120,8 +121,9 @@ On the first of each month:
 ## For AI agents
 
 When creating a new backlog entry:
+
 1. Use the template above — copy it exactly, fill in known fields, leave unknowns as defaults
-2. Place the file in the correct format subfolder
+2. Place the file directly in the `/docs/backlog/` folder
 3. Set status to `idea`
 4. Leave priority as 0 unless instructed otherwise
 5. Check the taxonomy for the correct format, mode, and submode
@@ -129,6 +131,7 @@ When creating a new backlog entry:
 7. Populate `texture_sets` with materials that make sense for this app — reuse existing ones
 
 When updating a backlog entry:
+
 1. Only update fields that have changed
 2. Add dated notes in the Changelog section
 3. Never delete historical data — append to it

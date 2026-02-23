@@ -56,7 +56,7 @@ const MAP_STYLE = {
           ["to-number", ["get", "height"]],
           ["has", "render_height"],
           ["to-number", ["get", "render_height"]],
-          12, // Default to 12 meters if height properties are entirely missing
+          5, // Default to 5 meters if height properties are entirely missing
         ],
         "fill-extrusion-base": [
           "case",
