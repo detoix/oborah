@@ -40,7 +40,6 @@ See [[taxonomy]] for the full breakdown.
 - [[traffic-strategy]] — How users find the apps (SEO, programmatic, automated video)
 - [[data-sources]] — All map, terrain, building, and environmental data sources
 - [[asset-pipeline]] — How 3D models and textures are created and managed
-- [[deployment]] — The factory: how a new app goes from config to live
 - [[backlog-guide]] — How to read and write backlog entries
 - [[dashboard]] — Live portfolio overview (Dataview)
 
@@ -52,18 +51,14 @@ See [[taxonomy]] for the full breakdown.
 - Distribution is programmatic, not manual
 - The business is quasi-passive: build, deploy, check monthly
 
-## Languages
-
-All apps are deployed in four languages: English, German, Spanish, Polish. This is automated via i18n config, not manual translation. Each language version is a separate indexable page targeting its local search market.
-
 ## Tech stack summary
 
-- Next.js (static export) + React Three Fiber
-- Mapbox (satellite, terrain, geocoding)
-- Cloudflare Pages (hosting, unlimited sites, free)
+- Next.js (App Router) + React 19
+- MapLibre + PMTiles + Protomaps basemaps
+- Photon geocoding (current map app integration)
 - AdSense (monetization)
 - Obsidian (this vault — backlog, docs, tracking)
-- Turborepo (monorepo management)
+- NPM workspaces (monorepo management)
 
 ## For AI agents
 

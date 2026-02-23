@@ -10,7 +10,7 @@ All external data used by the apps to ground 3D experiences in the real world.
   - React Map GL rendering with MapLibre.
   - Styled via `@protomaps/basemaps` (standard "light" flavor).
   - Custom `pmtiles://` protocol registered in `packages/map/index.tsx`.
-- **Local Data:** Uses `krakow.pmtiles` located in the project root for local development.
+- **Local Data:** Current map style references `pmtiles:///krakow.pmtiles`; the file must be available to the running app (for example as a public asset).
 - **Docs:** [Protomaps Docs](https://protomaps.com/docs/)
 
 ### Geocoding (Photon)
@@ -33,7 +33,6 @@ All external data used by the apps to ground 3D experiences in the real world.
 ## Caching Strategy
 
 1. **PMTiles** — Efficiently handled by the `pmtiles` library using Range Requests.
-2. **Geocoding** — Photon results should be cached locally to minimize API hits for repeated searches.
 
 ## For AI agents
 

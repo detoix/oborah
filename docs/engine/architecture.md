@@ -12,8 +12,6 @@ A monorepo containing a shared set of internal workspace packages and independen
   /packages
     /map                         ← PMTiles React MapLibre implementation (@engine/map)
     /...                         ← Any other shared UI components, hooks, or engine logic
-  /factory                       ← Scripts, generation tools, pipeline routines
-  /assets                        ← Shared textures, 3D models, fonts, and global static assets
   /apps
     /pmtiles-map-app             ← The main Next.js mapping application
 ```
@@ -24,7 +22,7 @@ A monorepo containing a shared set of internal workspace packages and independen
 
 - Local apps built on Next.js App Router (React 19).
 - Shared workspace dependencies mapped through NPM workspaces.
-- Fast local development with Turbopack.
+- Local development via the app's Next.js dev server.
 
 ### React Three Fiber over raw Three.js
 
@@ -37,13 +35,11 @@ A monorepo containing a shared set of internal workspace packages and independen
 - Local `.pmtiles` vector files as the base map and ground texture
 - Self-hosted street maps and Protomaps vector tiles integration via `protomaps-themes-base`
 - Local building footprints (3D buildings layer extruded via height/min_height properties)
-- Entirely offline capable, requires zero API keys or ongoing costs
 - Fast performance mapped natively to `react-map-gl/maplibre`
 
 ### Zustand for state
 
-- Lightweight, no boilerplate.
-- Perfect for tracking camera modes, selected map layers, UI state, and interactions across components.
+- Used in local apps where shared UI state is needed.
 
 ## Performance budget
 

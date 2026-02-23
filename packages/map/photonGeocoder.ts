@@ -120,10 +120,6 @@ export function createPhotonGeocoder(
       });
 
       if (!response.ok) {
-        console.error("[map-debug] Photon geocoder request failed", {
-          status: response.status,
-          statusText: response.statusText,
-        });
         return { type: "FeatureCollection", features: [] };
       }
 

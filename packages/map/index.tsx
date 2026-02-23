@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import MapGL from "react-map-gl/maplibre";
 import { Canvas } from "react-three-map/maplibre";
 import { Protocol } from "pmtiles";
@@ -80,7 +80,6 @@ function ensurePmtilesProtocol() {
   pmtilesProtocolInstance ??= new Protocol();
   maplibregl.addProtocol("pmtiles", pmtilesProtocolInstance.tile);
   pmtilesProtocolRegistered = true;
-  console.info("[map-debug] PMTiles protocol registered");
 }
 
 export type MapProps = {
@@ -89,29 +88,27 @@ export type MapProps = {
         provider: "photon";
       } & Omit<PhotonGeocoderControlProps, "map">)
     | null;
+  children?: React.ReactNode;
+  onMapInstance?: (map: maplibregl.Map) => void;
+  interactive?: boolean;
+  onMapClick?: (coords: { lng: number; lat: number }) => void;
 };
 
-export default function Map({ geocoder = null }: MapProps) {
+export default function Map({
+  geocoder = null,
+  children,
+  onMapInstance,
+  interactive = true,
+  onMapClick,
+}: MapProps) {
   ensurePmtilesProtocol();
   const [mapInstance, setMapInstance] = useState<maplibregl.Map | null>(null);
-
-  useEffect(() => {
-    console.info("[map-debug] component mounted", {
-      pmtilesUrl: (MAP_STYLE.sources as Record<string, { url?: string }>)
-        .protomaps?.url,
-      sprite: MAP_STYLE.sprite,
-    });
-
-    return () => {
-      console.info("[map-debug] component unmounted");
-    };
-  }, []);
 
   return (
     <div
       style={{
         width: "100%",
-        height: "100vh",
+        height: "100%",
         position: "relative",
         backgroundColor: "#fff",
       }}
@@ -119,6 +116,10 @@ export default function Map({ geocoder = null }: MapProps) {
       <MapGL
         initialViewState={INITIAL_VIEW_STATE}
         style={{ width: "100%", height: "100%", backgroundColor: "white" }}
+        dragPan={interactive}
+        dragRotate={interactive}
+        scrollZoom={interactive}
+        touchZoomRotate={interactive}
         canvasContextAttributes={{
           antialias: true,
           preserveDrawingBuffer: true,
@@ -127,14 +128,10 @@ export default function Map({ geocoder = null }: MapProps) {
         onLoad={(event) => {
           const map = event.target as maplibregl.Map;
           setMapInstance(map);
-          console.info("[map-debug] map load", {
-            styleLoaded: map.isStyleLoaded(),
-            center: map.getCenter().toArray(),
-            zoom: map.getZoom(),
-          });
-          map.on("error", (e) => {
-            console.error("[map-debug] map error", e.error);
-          });
+          onMapInstance?.(map);
+        }}
+        onClick={(event) => {
+          onMapClick?.({ lng: event.lngLat.lng, lat: event.lngLat.lat });
         }}
       >
         {geocoder?.provider === "photon" ? (
@@ -152,13 +149,7 @@ export default function Map({ geocoder = null }: MapProps) {
           longitude={INITIAL_VIEW_STATE.longitude}
           gl={{ preserveDrawingBuffer: true }}
         >
-          <ambientLight intensity={0.7} />
-          <directionalLight position={[10, 20, 20]} intensity={1.2} />
-
-          <mesh position={[0, 0, 18]}>
-            <boxGeometry args={[20, 20, 20]} />
-            <meshStandardMaterial color="#ff4da6" />
-          </mesh>
+          {children}
         </Canvas>
       </MapGL>
     </div>

@@ -10,7 +10,7 @@ export type CatalogItem = {
   icon: React.ReactNode;
 };
 
-const SAMPLE_ITEMS: CatalogItem[] = [
+export const CATALOG_ITEMS: CatalogItem[] = [
   {
     id: "1",
     name: "Building A",
@@ -36,12 +36,15 @@ export function CatalogView() {
     <div className="w-64 border-r border-border bg-background p-4 flex flex-col gap-4">
       <h2 className="text-lg font-semibold tracking-tight">Catalog</h2>
       <div className="flex flex-col gap-2">
-        {SAMPLE_ITEMS.map((item) => (
+        {CATALOG_ITEMS.map((item) => (
           <div
             key={item.id}
             draggable
             onDragStart={(e) => {
-              e.dataTransfer.setData("application/json", JSON.stringify(item));
+              e.dataTransfer.setData(
+                "application/obora-item",
+                JSON.stringify(item),
+              );
             }}
             className="flex items-center gap-3 p-3 text-sm font-medium border border-border rounded-md hover:bg-muted cursor-grab active:cursor-grabbing transition-colors"
           >
