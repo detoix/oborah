@@ -1,0 +1,27 @@
+{
+  "name": "@engine/map",
+  "version": "0.1.0",
+  "private": true,
+  "main": "index.tsx",
+  "types": "index.tsx",
+  "dependencies": {
+    "@maplibre/maplibre-gl-geocoder": "^1.9.4",
+    "@protomaps/basemaps": "^5.7.0",
+    "@react-three/fiber": "^9.5.0",
+    "maplibre-gl": "^5.19.0",
+    "pmtiles": "^4.4.0",
+    "react-map-gl": "^8.1.0",
+    "react-three-map": "^1.0.0",
+    "three": "^0.183.1"
+  },
+  "peerDependencies": {
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "@types/three": "^0.183.1",
+    "typescript": "^5"
+  }
+}

@@ -1,0 +1,1 @@
+{"name": "obora", "private": true, "workspaces": ["apps/*", "packages/*"]}
