@@ -1,10 +1,19 @@
 import { create } from "zustand";
+import type { CatalogItemId, CatalogItemKind } from "@oborah/catalog";
 
 export interface PlacedBuildingOnMap {
   id: string;
-  type: string;
+  kind: CatalogItemKind;
+  catalogItemId: CatalogItemId;
   position: { lng: number; lat: number };
   rotationY: number;
+}
+
+export interface NewPlacedBuilding {
+  catalogItemId: CatalogItemId;
+  kind: CatalogItemKind;
+  position: { lng: number; lat: number };
+  rotationY?: number;
 }
 
 interface PlannerStore {
@@ -15,18 +24,22 @@ interface PlannerStore {
 
   setDraggingFromLibrary: (v: boolean) => void;
   setInteractingWithModel: (v: boolean) => void;
-  addBuilding: (
-    type: string,
-    position: { lng: number; lat: number },
-    rotationY?: number,
-  ) => void;
+  addBuilding: (building: NewPlacedBuilding) => void;
   moveBuilding: (id: string, position: { lng: number; lat: number }) => void;
   rotateBuilding: (id: string, rotationY: number) => void;
   removeBuilding: (id: string) => void;
   selectBuilding: (id: string | null) => void;
 }
 
-let nextId = 1;
+function createBuildingId() {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return `map-building-${crypto.randomUUID()}`;
+  }
+
+  return `map-building-${Date.now()}-${Math.random()
+    .toString(36)
+    .slice(2, 8)}`;
+}
 
 export const usePlannerStore = create<PlannerStore>((set) => ({
   placedBuildings: [],
@@ -37,13 +50,14 @@ export const usePlannerStore = create<PlannerStore>((set) => ({
   setDraggingFromLibrary: (v) => set({ isDraggingFromLibrary: v }),
   setInteractingWithModel: (v) => set({ isInteractingWithModel: v }),
 
-  addBuilding: (type, position, rotationY = 0) => {
+  addBuilding: ({ kind, catalogItemId, position, rotationY = 0 }) => {
     set((state) => ({
       placedBuildings: [
         ...state.placedBuildings,
         {
-          id: `map-building-${nextId++}`,
-          type,
+          id: createBuildingId(),
+          kind,
+          catalogItemId,
           position,
           rotationY,
         },

@@ -8,26 +8,62 @@ export type CatalogItem = {
   name: string;
   type: "glb" | "procedural";
   icon: React.ReactNode;
+  visualConfig?: {
+    args: [number, number, number];
+    color: string;
+    soilColor?: string;
+    opacity?: number;
+    transparent?: boolean;
+  };
 };
+
+export type CatalogItemId = CatalogItem["id"];
+export type CatalogItemKind = CatalogItem["type"];
 
 export const CATALOG_ITEMS: CatalogItem[] = [
   {
-    id: "1",
-    name: "Building A",
-    type: "glb",
-    icon: <Box className="w-4 h-4" />,
-  },
-  {
-    id: "2",
-    name: "Custom Roof",
+    id: "raised-bed",
+    name: "Raised Bed",
     type: "procedural",
-    icon: <Triangle className="w-4 h-4" />,
+    icon: <Box className="w-4 h-4" />,
+    visualConfig: {
+      args: [6, 1.5, 3],
+      color: "#795548", // Wood Brown
+      soilColor: "#3E2723", // Dark Soil
+    },
   },
   {
-    id: "3",
-    name: "Extruded Wall",
+    id: "greenhouse",
+    name: "Greenhouse",
+    type: "glb",
+    icon: <Triangle className="w-4 h-4" />,
+    visualConfig: {
+      args: [8, 10, 12],
+      color: "#B2DFDB", // Glassy Teal
+      opacity: 0.6,
+      transparent: true,
+    },
+  },
+  {
+    id: "planter-box",
+    name: "Planter Box",
     type: "procedural",
     icon: <Cuboid className="w-4 h-4" />,
+    visualConfig: {
+      args: [2, 2, 2],
+      color: "#8D6E63",
+      soilColor: "#3E2723",
+    },
+  },
+  {
+    id: "compost-bin",
+    name: "Compost Bin",
+    type: "glb",
+    icon: <Box className="w-4 h-4" />,
+    visualConfig: {
+      args: [3, 4, 3],
+      color: "#424242", // Dark Grey
+    },
   },
 ];
 

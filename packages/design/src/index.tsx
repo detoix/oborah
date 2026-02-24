@@ -1,18 +1,20 @@
 "use client";
 
 import React from "react";
-import { InteractiveModel } from "./InteractiveModel";
+import { InteractiveModel, type VisualConfig } from "./InteractiveModel";
 
 export interface DesignBuilding {
   id: string;
-  type: string;
+  kind: string;
   position: { lng: number; lat: number };
   rotationY: number;
+  visualConfig?: VisualConfig;
 }
 
 export interface DesignLayerProps {
   buildings: DesignBuilding[];
   selectedId: string | null;
+  origin: { longitude: number; latitude: number };
   onMoveBuilding: (id: string, position: { lng: number; lat: number }) => void;
   onRotateBuilding: (id: string, rotation: number) => void;
   onSelectBuilding: (id: string | null) => void;
@@ -23,6 +25,7 @@ export interface DesignLayerProps {
 export function DesignLayer({
   buildings = [],
   selectedId = null,
+  origin,
   onMoveBuilding = () => {},
   onRotateBuilding = () => {},
   onSelectBuilding = () => {},
@@ -38,10 +41,11 @@ export function DesignLayer({
         <InteractiveModel
           key={b.id}
           id={b.id}
-          type={b.type}
           position={b.position}
           rotationY={b.rotationY}
           isSelected={b.id === selectedId}
+          visualConfig={b.visualConfig}
+          origin={origin}
           onMove={(lng, lat) => onMoveBuilding(b.id, { lng, lat })}
           onRotate={(rot) => onRotateBuilding(b.id, rot)}
           onClick={() => onSelectBuilding(b.id)}

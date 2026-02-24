@@ -2,8 +2,8 @@
   "name": "@engine/map",
   "version": "0.1.0",
   "private": true,
-  "main": "index.tsx",
-  "types": "index.tsx",
+  "main": "src/index.tsx",
+  "types": "src/index.tsx",
   "dependencies": {
     "@maplibre/maplibre-gl-geocoder": "^1.9.4",
     "@protomaps/basemaps": "^5.7.0",

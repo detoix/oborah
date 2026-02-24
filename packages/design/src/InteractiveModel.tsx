@@ -5,12 +5,21 @@ import { ThreeEvent, useThree } from "@react-three/fiber";
 import { coordsToVector3, vector3ToCoords } from "react-three-map/maplibre";
 import * as THREE from "three";
 
+export interface VisualConfig {
+  args: [number, number, number];
+  color: string;
+  soilColor?: string;
+  opacity?: number;
+  transparent?: boolean;
+}
+
 interface InteractiveModelProps {
   id: string;
-  type: string;
   position: { lng: number; lat: number };
   rotationY: number;
   isSelected: boolean;
+  visualConfig?: VisualConfig;
+  origin: { longitude: number; latitude: number };
   onMove: (lng: number, lat: number) => void;
   onRotate: (rotation: number) => void;
   onClick: () => void;
@@ -18,15 +27,8 @@ interface InteractiveModelProps {
   onInteractionEnd?: () => void;
 }
 
-// We'll use Kraków as default origin if not provided,
-// but we should ideally get this from the context or map.
-// For now, matching the page's initial view.
-const CANVAS_ORIGIN = {
-  longitude: 19.945,
-  latitude: 50.0647,
-};
-
 const ROTATION_RING_WIDTH = 1.0;
+const DEFAULT_ORIGIN = { longitude: 19.945, latitude: 50.0647 } as const;
 type PointerCaptureTarget = EventTarget & {
   setPointerCapture?: (pointerId: number) => void;
   releasePointerCapture?: (pointerId: number) => void;
@@ -34,10 +36,11 @@ type PointerCaptureTarget = EventTarget & {
 
 export function InteractiveModel({
   id,
-  type,
   position: lngLat,
   rotationY,
   isSelected,
+  visualConfig,
+  origin,
   onMove,
   onRotate,
   onClick,
@@ -51,6 +54,42 @@ export function InteractiveModel({
   const rotateStartAngle = useRef(0);
   const rotateStartRotation = useRef(0);
 
+  const defaultVisualConfig = useMemo(
+    (): VisualConfig => ({
+      args: [4, 8, 4],
+      color: "#00ff88",
+    }),
+    [],
+  );
+
+  const activeConfig = visualConfig ?? defaultVisualConfig;
+
+  const safeOrigin = useMemo(() => {
+    if (
+      origin &&
+      Number.isFinite(origin.longitude) &&
+      Number.isFinite(origin.latitude)
+    ) {
+      return origin;
+    }
+    console.warn(
+      `InteractiveModel(${id}): invalid origin, defaulting to Kraków`,
+      origin,
+    );
+    return DEFAULT_ORIGIN;
+  }, [id, origin]);
+
+  const safeLngLat = useMemo(() => {
+    if (Number.isFinite(lngLat?.lng) && Number.isFinite(lngLat?.lat)) {
+      return lngLat;
+    }
+    console.warn(
+      `InteractiveModel(${id}): invalid position, falling back to origin`,
+      lngLat,
+    );
+    return { lng: safeOrigin.longitude, lat: safeOrigin.latitude };
+  }, [id, lngLat, safeOrigin.latitude, safeOrigin.longitude]);
+
   const groundPlane = useMemo(
     () => new THREE.Plane(new THREE.Vector3(0, 1, 0), 0),
     [],
@@ -58,11 +97,11 @@ export function InteractiveModel({
 
   const position = useMemo(() => {
     const [x, y, z] = coordsToVector3(
-      { longitude: lngLat.lng, latitude: lngLat.lat },
-      CANVAS_ORIGIN,
+      { longitude: safeLngLat.lng, latitude: safeLngLat.lat },
+      safeOrigin,
     );
     return [x, y, z] as [number, number, number];
-  }, [lngLat.lng, lngLat.lat]);
+  }, [safeLngLat.lat, safeLngLat.lng, safeOrigin]);
 
   const raycastToGround = useCallback(
     (ray: THREE.Ray): THREE.Vector3 | null => {
@@ -84,11 +123,11 @@ export function InteractiveModel({
       dragOffset.current.copy(hitPoint).sub(groupRef.current.position);
       onInteractionStart?.();
 
-      (e.nativeEvent.target as PointerCaptureTarget | null)?.setPointerCapture?.(
-        e.nativeEvent.pointerId,
-      );
+      (
+        e.nativeEvent.target as PointerCaptureTarget | null
+      )?.setPointerCapture?.(e.nativeEvent.pointerId);
     },
-    [id, onClick, raycastToGround, onInteractionStart],
+    [onClick, raycastToGround, onInteractionStart],
   );
 
   const handlePointerMove = useCallback(
@@ -117,10 +156,10 @@ export function InteractiveModel({
       )?.releasePointerCapture?.(e.nativeEvent.pointerId);
 
       const pos = groupRef.current.position;
-      const coords = vector3ToCoords([pos.x, pos.y, pos.z], CANVAS_ORIGIN);
+      const coords = vector3ToCoords([pos.x, pos.y, pos.z], safeOrigin);
       onMove(coords.longitude, coords.latitude);
     },
-    [onMove, onInteractionEnd],
+    [onMove, onInteractionEnd, safeOrigin],
   );
 
   const getAngleFromCenter = useCallback(
@@ -145,9 +184,9 @@ export function InteractiveModel({
       rotateStartRotation.current = groupRef.current.rotation.y;
       onInteractionStart?.();
 
-      (e.nativeEvent.target as PointerCaptureTarget | null)?.setPointerCapture?.(
-        e.nativeEvent.pointerId,
-      );
+      (
+        e.nativeEvent.target as PointerCaptureTarget | null
+      )?.setPointerCapture?.(e.nativeEvent.pointerId);
     },
     [getAngleFromCenter, onInteractionStart],
   );
@@ -191,13 +230,25 @@ export function InteractiveModel({
         castShadow
         receiveShadow
       >
-        <boxGeometry args={[4, 8, 4]} />
+        <boxGeometry args={activeConfig.args} />
         <meshStandardMaterial
-          color={type === "glb" ? "#ffa500" : "#00ff88"}
+          color={activeConfig.color}
+          opacity={activeConfig.opacity ?? 1}
+          transparent={activeConfig.transparent ?? false}
           emissive={isSelected ? "#ffffff" : "#000000"}
           emissiveIntensity={isSelected ? 0.3 : 0}
         />
       </mesh>
+
+      {/* Soil layer for beds/planters */}
+      {activeConfig.soilColor && (
+        <mesh position={[0, activeConfig.args[1] / 2 + 0.05, 0]}>
+          <boxGeometry
+            args={[activeConfig.args[0] - 0.2, 0.1, activeConfig.args[2] - 0.2]}
+          />
+          <meshStandardMaterial color={activeConfig.soilColor} />
+        </mesh>
+      )}
 
       {isSelected && (
         <mesh
