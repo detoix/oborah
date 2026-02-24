@@ -4,6 +4,8 @@
 
 A portfolio of hundreds of small, independent, ad-monetized web apps. Each app provides an interactive 3D experience grounded in real-world location data. Users enter an address and interact with a 3D scene overlaid on their actual environment — their yard, their roof, their street, their neighborhood.
 
+The current example app in this repo is a vegetable garden planner: a map-grounded layout tool for arranging beds, planters, and related garden elements in a real space.
+
 ## Why does this work?
 
 Three converging truths:
@@ -55,7 +57,7 @@ See [[taxonomy]] for the full breakdown.
 
 - Next.js (App Router) + React 19
 - MapLibre + PMTiles + Protomaps basemaps
-- Photon geocoding (current map app integration)
+- Photon geocoding (current vegetable garden planner integration)
 - AdSense (monetization)
 - Obsidian (this vault — backlog, docs, tracking)
 - NPM workspaces (monorepo management)

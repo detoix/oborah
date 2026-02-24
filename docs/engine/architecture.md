@@ -13,7 +13,7 @@ A monorepo containing a shared set of internal workspace packages and independen
     /map                         ← PMTiles React MapLibre implementation (@engine/map)
     /...                         ← Any other shared UI components, hooks, or engine logic
   /apps
-    /pmtiles-map-app             ← The main Next.js mapping application
+    /vegetable-garden-planner    ← The current Next.js app for planning vegetable gardens
 ```
 
 ## Tech stack decisions
@@ -36,6 +36,7 @@ A monorepo containing a shared set of internal workspace packages and independen
 - Self-hosted street maps and Protomaps vector tiles integration via `protomaps-themes-base`
 - Local building footprints (3D buildings layer extruded via height/min_height properties)
 - Fast performance mapped natively to `react-map-gl/maplibre`
+- Used as the spatial foundation for purpose-specific tools like the vegetable garden planner app
 
 ### Zustand for state
 

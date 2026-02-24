@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "PMTiles Map App",
-  description: "Displaying Protomaps data natively in Next.js",
+  title: "Vegetable Garden Planner",
+  description: "Plan and arrange a vegetable garden layout on a real-world map",
 };
 
 import "maplibre-gl/dist/maplibre-gl.css";
