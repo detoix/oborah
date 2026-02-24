@@ -1,5 +1,5 @@
 {
-  "name": "@obora/catalog",
+  "name": "@oborah/catalog",
   "version": "1.0.0",
   "description": "Spatial planning catalog module",
   "main": "src/index.tsx",

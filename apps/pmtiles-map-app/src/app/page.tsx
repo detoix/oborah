@@ -8,8 +8,8 @@ import React, {
   useState,
 } from "react";
 import Map from "@engine/map";
-import { CATALOG_ITEMS, CatalogItem, CatalogView } from "@obora/catalog";
-import { DesignLayer } from "@obora/design";
+import { CATALOG_ITEMS, CatalogItem, CatalogView } from "@oborah/catalog";
+import { DesignLayer } from "@oborah/design";
 import { usePlannerStore } from "@/stores/use-planner-store";
 import maplibregl from "maplibre-gl";
 import { Check, ChevronUp, Redo2, RotateCw, Undo2, X } from "lucide-react";
@@ -126,11 +126,11 @@ export default function Home() {
   const hasCatalogPayload = useCallback((dataTransfer: DataTransfer) => {
     const types = Array.from(dataTransfer.types ?? []);
     return (
-      types.includes("application/obora-item") ||
+      types.includes("application/oborah-item") ||
       types.includes("text/plain") ||
       (
         dataTransfer.types as unknown as { contains?: (t: string) => boolean }
-      )?.contains?.("application/obora-item") === true
+      )?.contains?.("application/oborah-item") === true
     );
   }, []);
 
@@ -149,7 +149,7 @@ export default function Home() {
       e.preventDefault();
       setIsDesktopCatalogDragging(false);
       const data =
-        e.dataTransfer.getData("application/obora-item") ||
+        e.dataTransfer.getData("application/oborah-item") ||
         e.dataTransfer.getData("text/plain");
       const mapInstance = desktopMapInstanceRef.current;
       if (!data || !mapInstance) return;

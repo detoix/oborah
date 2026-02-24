@@ -1,5 +1,5 @@
 {
-  "name": "obora",
+  "name": "oborah",
   "private": true,
   "workspaces": [
     "apps/*",

@@ -1,5 +1,5 @@
 {
-  "name": "@obora/design",
+  "name": "@oborah/design",
   "version": "1.0.0",
   "description": "Spatial planning map layer module",
   "main": "src/index.tsx",

@@ -10,8 +10,8 @@
   },
   "dependencies": {
     "@engine/map": "file:../../packages/map",
-    "@obora/catalog": "file:../../packages/catalog",
-    "@obora/design": "file:../../packages/design",
+    "@oborah/catalog": "file:../../packages/catalog",
+    "@oborah/design": "file:../../packages/design",
     "@react-three/fiber": "^9.5.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
@@ -30,6 +30,7 @@
     "@types/react": "^19.0.10",
     "@types/react-dom": "^19.0.4",
     "@types/three": "^0.183.1",
+    "babel-plugin-react-compiler": "^1.0.0",
     "eslint": "^9",
     "eslint-config-next": "16.1.6",
     "shadcn": "^3.8.5",

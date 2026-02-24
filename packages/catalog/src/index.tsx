@@ -51,7 +51,7 @@ export function CatalogView({
             onDragStart={(e) => {
               e.dataTransfer.effectAllowed = "copy";
               e.dataTransfer.setData(
-                "application/obora-item",
+                "application/oborah-item",
                 JSON.stringify(item),
               );
               // Fallback for browsers/UIs that ignore custom MIME-only payloads.
