@@ -160,13 +160,13 @@ export default function Home() {
   const sheetHeightClass =
     mobileMode === "edit" || mobileMode === "material"
       ? sheetSnap === "full"
-        ? "h-[92dvh]"
-        : "h-44"
+        ? "h-[94dvh]"
+        : "h-48"
       : sheetSnap === "collapsed"
-        ? "h-24"
+        ? "h-32"
         : sheetSnap === "half"
-          ? "h-[52dvh]"
-          : "h-[92dvh]";
+          ? "h-[50dvh]"
+          : "h-[94dvh]";
 
   if (isDesktopViewport === null) {
     return <main className="w-screen h-screen overflow-hidden bg-white" />;

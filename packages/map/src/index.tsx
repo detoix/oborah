@@ -21,7 +21,8 @@ const INITIAL_VIEW_STATE = {
   bearing: -20,
 };
 
-const MAP_STYLE = "https://basemaps.cartocdn.com/gl/positron-gl-style/style.json";
+const MAP_STYLE =
+  "https://basemaps.cartocdn.com/gl/positron-gl-style/style.json";
 
 function ensurePmtilesProtocol() {
   if (typeof window === "undefined" || pmtilesProtocolRegistered) {
@@ -91,7 +92,11 @@ export default function Map({
           onMapClick?.({ lng: event.lngLat.lng, lat: event.lngLat.lat });
         }}
       >
-        <Source id="protomaps" type="vector" url="pmtiles:///krakow.pmtiles">
+        <Source
+          id="protomaps"
+          type="vector"
+          url="pmtiles:///europe_west.pmtiles"
+        >
           <Layer
             id="buildings-3d"
             type="fill-extrusion"

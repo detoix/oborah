@@ -31,21 +31,20 @@ export function MobileOverlay({
 }: MobileOverlayProps) {
   return (
     <div className="pointer-events-none absolute inset-0">
-      {/* Undo/Redo Buttons */}
-      <div className="absolute inset-x-3 bottom-28 flex justify-end gap-2">
-        <button className="pointer-events-auto h-10 w-10 rounded-full bg-white/90 shadow border border-black/10 grid place-items-center">
-          <Undo2 className="h-4 w-4" />
+      <div className="absolute inset-x-4 bottom-32 flex justify-end gap-3">
+        <button className="pointer-events-auto h-12 w-12 rounded-2xl bg-white/70 backdrop-blur-md shadow-lg border border-white/40 grid place-items-center active:scale-90 transition-transform">
+          <Undo2 className="h-5 w-5 text-black/70" />
         </button>
-        <button className="pointer-events-auto h-10 w-10 rounded-full bg-white/90 shadow border border-black/10 grid place-items-center">
-          <Redo2 className="h-4 w-4" />
+        <button className="pointer-events-auto h-12 w-12 rounded-2xl bg-white/70 backdrop-blur-md shadow-lg border border-white/40 grid place-items-center active:scale-90 transition-transform">
+          <Redo2 className="h-5 w-5 text-black/70" />
         </button>
       </div>
 
       <div
-        className={`pointer-events-auto absolute inset-x-0 bottom-0 z-20 rounded-t-3xl border-t border-black/10 bg-white/96 shadow-2xl backdrop-blur transition-[height] duration-200 ${sheetHeightClass}`}
+        className={`pointer-events-auto absolute inset-x-0 bottom-0 z-20 rounded-t-[2.5rem] border-t border-white/40 bg-white/60 shadow-[0_-8px_30px_rgb(0,0,0,0.12)] backdrop-blur-2xl transition-[height] duration-500 cubic-bezier(0.4, 0, 0.2, 1) ${sheetHeightClass}`}
       >
         <div className="flex h-full flex-col">
-          <div className="flex items-center justify-center pt-2 pb-1">
+          <div className="flex items-center justify-center pt-3 pb-2">
             <button
               type="button"
               aria-label="Change sheet size"
@@ -58,13 +57,13 @@ export function MobileOverlay({
                       : "collapsed",
                 )
               }
-              className="flex flex-col items-center gap-1"
+              className="flex flex-col items-center gap-1.5 px-8 pt-1 pb-2"
             >
-              <span className="h-1.5 w-12 rounded-full bg-black/15" />
+              <span className="h-1.5 w-14 rounded-full bg-black/10 shadow-[inner_0_1px_2px_rgba(0,0,0,0.1)]" />
               <ChevronUp
-                className={`h-4 w-4 text-black/45 transition-transform ${
+                className={`h-4 w-4 text-black/30 transition-all duration-300 ${
                   sheetSnap === "full" ? "rotate-180" : ""
-                }`}
+                } ${sheetSnap === "collapsed" ? "opacity-100" : "opacity-0"}`}
               />
             </button>
           </div>
@@ -75,15 +74,15 @@ export function MobileOverlay({
                 <input
                   type="search"
                   placeholder="Search catalog..."
-                  className="mb-3 h-10 rounded-xl border border-black/10 bg-white px-3 text-sm outline-none"
+                  className="mb-4 h-11 rounded-2xl border border-white/80 bg-white/40 px-4 text-sm outline-none backdrop-blur-sm transition-all focus:bg-white/80 focus:ring-2 focus:ring-emerald-500/20"
                 />
               )}
 
               <div
                 className={
                   sheetSnap === "collapsed"
-                    ? "flex gap-2 overflow-x-auto pb-1"
-                    : "grid grid-cols-3 gap-2 overflow-y-auto"
+                    ? "flex gap-2.5 overflow-x-auto pb-3 no-scrollbar -mx-1 px-1"
+                    : "grid grid-cols-4 gap-2 overflow-y-auto pb-4"
                 }
               >
                 {CATALOG_ITEMS.map((item) => (
@@ -93,14 +92,14 @@ export function MobileOverlay({
                     onClick={() => enterEditModeForItem(item)}
                     className={
                       sheetSnap === "collapsed"
-                        ? "shrink-0 min-w-20 rounded-2xl border border-black/10 bg-white px-3 py-2 text-left shadow-sm"
-                        : "rounded-2xl border border-black/10 bg-white p-3 text-left shadow-sm"
+                        ? "shrink-0 min-w-[4.8rem] rounded-[1.25rem] border border-white/60 bg-white/70 p-2 text-center shadow-sm backdrop-blur-sm active:scale-95 transition-all"
+                        : "rounded-[1.25rem] border border-white/60 bg-white/70 p-2 text-center shadow-sm backdrop-blur-sm active:scale-95 transition-all"
                     }
                   >
-                    <div className="mb-1 flex h-8 w-8 items-center justify-center rounded-lg bg-black/5">
-                      {item.icon}
+                    <div className="mb-1.5 flex aspect-square items-center justify-center rounded-xl bg-gradient-to-br from-emerald-50 to-emerald-100/50 text-emerald-700 shadow-inner">
+                      <div className="scale-90">{item.icon}</div>
                     </div>
-                    <div className="text-xs font-medium leading-tight">
+                    <div className="text-[9px] font-semibold leading-tight text-black/80">
                       {item.name}
                     </div>
                   </button>
