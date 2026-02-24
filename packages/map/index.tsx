@@ -1,17 +1,15 @@
 "use client";
 
 import { useState } from "react";
-import MapGL from "react-map-gl/maplibre";
+import MapGL, { Layer, Source } from "react-map-gl/maplibre";
 import { Canvas } from "react-three-map/maplibre";
 import { Protocol } from "pmtiles";
 import maplibregl from "maplibre-gl";
-import { layers, namedFlavor } from "@protomaps/basemaps";
 import "maplibre-gl/dist/maplibre-gl.css";
 import PhotonGeocoderControl, {
   type PhotonGeocoderControlProps,
 } from "./PhotonGeocoderControl";
 
-// We need to register the PMTiles protocol with MapLibre
 let pmtilesProtocolRegistered = false;
 let pmtilesProtocolInstance: Protocol | null = null;
 
@@ -23,54 +21,7 @@ const INITIAL_VIEW_STATE = {
   bearing: -20,
 };
 
-const BASEMAP_LAYERS = layers("protomaps", namedFlavor("light"), {
-  lang: "en",
-});
-
-const MAP_STYLE = {
-  version: 8,
-  glyphs:
-    "https://protomaps.github.io/basemaps-assets/fonts/{fontstack}/{range}.pbf",
-  // Protomaps basemap symbol layers reference sprite icons (POIs, shields, etc.)
-  sprite: "https://protomaps.github.io/basemaps-assets/sprites/v4/light",
-  sources: {
-    protomaps: {
-      type: "vector",
-      url: "pmtiles:///krakow.pmtiles",
-      attribution: "Protomaps © OpenStreetMap",
-    },
-  },
-  layers: [
-    ...BASEMAP_LAYERS,
-    {
-      id: "buildings-3d",
-      source: "protomaps",
-      "source-layer": "buildings",
-      type: "fill-extrusion",
-      minzoom: 12,
-      paint: {
-        "fill-extrusion-color": "#d8d8d8",
-        "fill-extrusion-height": [
-          "case",
-          ["has", "height"],
-          ["to-number", ["get", "height"]],
-          ["has", "render_height"],
-          ["to-number", ["get", "render_height"]],
-          5, // Default to 5 meters if height properties are entirely missing
-        ],
-        "fill-extrusion-base": [
-          "case",
-          ["has", "min_height"],
-          ["to-number", ["get", "min_height"]],
-          ["has", "render_min_height"],
-          ["to-number", ["get", "render_min_height"]],
-          0,
-        ],
-        "fill-extrusion-opacity": 0.9,
-      },
-    },
-  ],
-} as maplibregl.StyleSpecification;
+const MAP_STYLE = "https://basemaps.cartocdn.com/gl/positron-gl-style/style.json";
 
 function ensurePmtilesProtocol() {
   if (typeof window === "undefined" || pmtilesProtocolRegistered) {
@@ -92,6 +43,8 @@ export type MapProps = {
   onMapInstance?: (map: maplibregl.Map) => void;
   interactive?: boolean;
   onMapClick?: (coords: { lng: number; lat: number }) => void;
+  onCanvasPointerMissed?: (event: MouseEvent) => void;
+  interactiveLayerIds?: string[];
 };
 
 export default function Map({
@@ -100,6 +53,8 @@ export default function Map({
   onMapInstance,
   interactive = true,
   onMapClick,
+  onCanvasPointerMissed,
+  interactiveLayerIds,
 }: MapProps) {
   ensurePmtilesProtocol();
   const [mapInstance, setMapInstance] = useState<maplibregl.Map | null>(null);
@@ -116,6 +71,8 @@ export default function Map({
       <MapGL
         initialViewState={INITIAL_VIEW_STATE}
         style={{ width: "100%", height: "100%", backgroundColor: "white" }}
+        attributionControl={false}
+        interactiveLayerIds={interactiveLayerIds}
         dragPan={interactive}
         dragRotate={interactive}
         scrollZoom={interactive}
@@ -134,6 +91,34 @@ export default function Map({
           onMapClick?.({ lng: event.lngLat.lng, lat: event.lngLat.lat });
         }}
       >
+        <Source id="protomaps" type="vector" url="pmtiles:///krakow.pmtiles">
+          <Layer
+            id="buildings-3d"
+            type="fill-extrusion"
+            source-layer="buildings"
+            minzoom={12}
+            paint={{
+              "fill-extrusion-color": "#d8d8d8",
+              "fill-extrusion-height": [
+                "case",
+                ["has", "height"],
+                ["to-number", ["get", "height"]],
+                ["has", "render_height"],
+                ["to-number", ["get", "render_height"]],
+                5,
+              ],
+              "fill-extrusion-base": [
+                "case",
+                ["has", "min_height"],
+                ["to-number", ["get", "min_height"]],
+                ["has", "render_min_height"],
+                ["to-number", ["get", "render_min_height"]],
+                0,
+              ],
+              "fill-extrusion-opacity": 0.9,
+            }}
+          />
+        </Source>
         {geocoder?.provider === "photon" ? (
           <PhotonGeocoderControl
             map={mapInstance}
@@ -147,7 +132,9 @@ export default function Map({
         <Canvas
           latitude={INITIAL_VIEW_STATE.latitude}
           longitude={INITIAL_VIEW_STATE.longitude}
-          gl={{ preserveDrawingBuffer: true }}
+          onPointerMissed={(event) => {
+            onCanvasPointerMissed?.(event);
+          }}
         >
           {children}
         </Canvas>

@@ -27,6 +27,10 @@ const CANVAS_ORIGIN = {
 };
 
 const ROTATION_RING_WIDTH = 1.0;
+type PointerCaptureTarget = EventTarget & {
+  setPointerCapture?: (pointerId: number) => void;
+  releasePointerCapture?: (pointerId: number) => void;
+};
 
 export function InteractiveModel({
   id,
@@ -80,7 +84,9 @@ export function InteractiveModel({
       dragOffset.current.copy(hitPoint).sub(groupRef.current.position);
       onInteractionStart?.();
 
-      e.target.setPointerCapture?.(e.pointerId);
+      (e.nativeEvent.target as PointerCaptureTarget | null)?.setPointerCapture?.(
+        e.nativeEvent.pointerId,
+      );
     },
     [id, onClick, raycastToGround, onInteractionStart],
   );
@@ -106,7 +112,9 @@ export function InteractiveModel({
 
       isDragging.current = false;
       onInteractionEnd?.();
-      e.target.releasePointerCapture?.(e.pointerId);
+      (
+        e.nativeEvent.target as PointerCaptureTarget | null
+      )?.releasePointerCapture?.(e.nativeEvent.pointerId);
 
       const pos = groupRef.current.position;
       const coords = vector3ToCoords([pos.x, pos.y, pos.z], CANVAS_ORIGIN);
@@ -137,7 +145,9 @@ export function InteractiveModel({
       rotateStartRotation.current = groupRef.current.rotation.y;
       onInteractionStart?.();
 
-      e.target.setPointerCapture?.(e.pointerId);
+      (e.nativeEvent.target as PointerCaptureTarget | null)?.setPointerCapture?.(
+        e.nativeEvent.pointerId,
+      );
     },
     [getAngleFromCenter, onInteractionStart],
   );
@@ -163,7 +173,9 @@ export function InteractiveModel({
 
       isRotating.current = false;
       onInteractionEnd?.();
-      e.target.releasePointerCapture?.(e.pointerId);
+      (
+        e.nativeEvent.target as PointerCaptureTarget | null
+      )?.releasePointerCapture?.(e.nativeEvent.pointerId);
 
       onRotate(groupRef.current.rotation.y);
     },

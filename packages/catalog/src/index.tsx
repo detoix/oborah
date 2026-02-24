@@ -31,7 +31,15 @@ export const CATALOG_ITEMS: CatalogItem[] = [
   },
 ];
 
-export function CatalogView() {
+export interface CatalogViewProps {
+  onItemDragStart?: (item: CatalogItem) => void;
+  onItemDragEnd?: (item: CatalogItem) => void;
+}
+
+export function CatalogView({
+  onItemDragStart,
+  onItemDragEnd,
+}: CatalogViewProps = {}) {
   return (
     <div className="w-64 border-r border-border bg-background p-4 flex flex-col gap-4">
       <h2 className="text-lg font-semibold tracking-tight">Catalog</h2>
@@ -41,10 +49,17 @@ export function CatalogView() {
             key={item.id}
             draggable
             onDragStart={(e) => {
+              e.dataTransfer.effectAllowed = "copy";
               e.dataTransfer.setData(
                 "application/obora-item",
                 JSON.stringify(item),
               );
+              // Fallback for browsers/UIs that ignore custom MIME-only payloads.
+              e.dataTransfer.setData("text/plain", JSON.stringify(item));
+              onItemDragStart?.(item);
+            }}
+            onDragEnd={() => {
+              onItemDragEnd?.(item);
             }}
             className="flex items-center gap-3 p-3 text-sm font-medium border border-border rounded-md hover:bg-muted cursor-grab active:cursor-grabbing transition-colors"
           >
