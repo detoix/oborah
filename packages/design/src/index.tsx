@@ -1,12 +1,13 @@
 "use client";
 
 import React from "react";
+import type { GeoCenter, GeoPoint } from "@oborah/geo";
 import { InteractiveModel, type VisualConfig } from "./InteractiveModel";
 
 export interface DesignBuilding {
   id: string;
   kind: string;
-  position: { lng: number; lat: number };
+  position: GeoPoint;
   rotationY: number;
   visualConfig?: VisualConfig;
 }
@@ -14,8 +15,8 @@ export interface DesignBuilding {
 export interface DesignLayerProps {
   buildings: DesignBuilding[];
   selectedId: string | null;
-  origin: { longitude: number; latitude: number };
-  onMoveBuilding: (id: string, position: { lng: number; lat: number }) => void;
+  origin: GeoCenter;
+  onMoveBuilding: (id: string, position: GeoPoint) => void;
   onRotateBuilding: (id: string, rotation: number) => void;
   onSelectBuilding: (id: string | null) => void;
   onInteractionStart?: () => void;

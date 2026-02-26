@@ -1,10 +1,11 @@
 {
-  "name": "@engine/map",
+  "name": "@oborah/map",
   "version": "0.1.0",
   "private": true,
   "main": "src/index.tsx",
   "types": "src/index.tsx",
   "dependencies": {
+    "@oborah/geo": "file:../../packages/geo",
     "@maplibre/maplibre-gl-geocoder": "^1.9.4",
     "@protomaps/basemaps": "^5.7.0",
     "@react-three/fiber": "^9.5.0",

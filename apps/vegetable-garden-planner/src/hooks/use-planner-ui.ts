@@ -2,7 +2,8 @@
 
 import { useState, useCallback } from "react";
 import type { CatalogItem, CatalogItemId, CatalogItemKind } from "@oborah/catalog";
-import maplibregl from "maplibre-gl";
+import type { GeoPoint } from "@oborah/geo";
+import type { MapApi } from "@oborah/map";
 
 export type SheetSnap = "collapsed" | "half" | "full";
 export type MobileMode = "browse" | "edit" | "material";
@@ -11,13 +12,13 @@ export type DraftPlacement = {
   id: "draft-placement";
   kind: CatalogItemKind;
   catalogItemId: CatalogItemId;
-  position: { lng: number; lat: number };
+  position: GeoPoint;
   rotationY: number;
   sourceItem: CatalogItem;
 };
 
 export function usePlannerUI(
-  mapInstanceRef: React.MutableRefObject<maplibregl.Map | null>,
+  mapApiRef: React.MutableRefObject<MapApi | null>,
   selectBuilding: (id: string | null) => void,
 ) {
   const [sheetSnap, setSheetSnap] = useState<SheetSnap>("collapsed");
@@ -30,7 +31,7 @@ export function usePlannerUI(
 
   const enterEditModeForItem = useCallback(
     (item: CatalogItem) => {
-      const center = mapInstanceRef.current?.getCenter();
+      const center = mapApiRef.current?.getCenter();
       if (!center) return;
 
       setBrowseSnapBeforeEdit(sheetSnap);
@@ -46,7 +47,7 @@ export function usePlannerUI(
       setSheetSnap("collapsed");
       selectBuilding(null);
     },
-    [mapInstanceRef, selectBuilding, sheetSnap],
+    [mapApiRef, selectBuilding, sheetSnap],
   );
 
   const exitDraftMode = useCallback(() => {
@@ -56,7 +57,7 @@ export function usePlannerUI(
   }, [browseSnapBeforeEdit]);
 
   const updateDraftPosition = useCallback(
-    (position: { lng: number; lat: number }) => {
+    (position: GeoPoint) => {
       setDraftPlacement((draft) => (draft ? { ...draft, position } : draft));
     },
     [],

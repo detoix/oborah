@@ -10,7 +10,7 @@ A monorepo containing a shared set of internal workspace packages and independen
 /monorepo
   /docs                          ← Documentation, architecture notes, and data source information
   /packages
-    /map                         ← PMTiles React MapLibre implementation (@engine/map)
+    /map                         ← PMTiles React MapLibre implementation (@oborah/map)
     /...                         ← Any other shared UI components, hooks, or engine logic
   /apps
     /vegetable-garden-planner    ← The current Next.js app for planning vegetable gardens

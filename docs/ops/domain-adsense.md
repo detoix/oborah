@@ -31,7 +31,7 @@ When a site consistently earns or gets 5k+ monthly visits, buy a dedicated domai
 
 ### Initial setup
 1. Apply for Google AdSense with `designyour.app` as the primary site
-2. Once approved, add the auto-ads script to the `@engine/ad-wrapper` component
+2. Once approved, add the auto-ads script to the `@oborah/ad-wrapper` component
 3. All sites inherit it automatically
 
 ### Auto-ads configuration
@@ -68,7 +68,7 @@ When adding a custom domain, add it to the AdSense account (Settings → Sites �
 
 ## For AI agents
 
-- All sites include the AdSense snippet via the shared `@engine/ad-wrapper` package
+- All sites include the AdSense snippet via the shared `@oborah/ad-wrapper` package
 - All sites include the analytics snippet via the shared layout
 - Environment variables `NEXT_PUBLIC_ADSENSE_ID` and `NEXT_PUBLIC_ANALYTICS_SITE_ID` must be set
 - When deploying a new site, the ad and analytics setup is automatic — no manual steps

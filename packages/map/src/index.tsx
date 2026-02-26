@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import MapGL, { Layer, Source } from "react-map-gl/maplibre";
 import { Canvas } from "react-three-map/maplibre";
 import { Protocol } from "pmtiles";
 import maplibregl from "maplibre-gl";
+import type { ClientPoint, GeoCenter, GeoPoint } from "@oborah/geo";
 import "maplibre-gl/dist/maplibre-gl.css";
 import PhotonGeocoderControl, {
   type PhotonGeocoderControlProps,
@@ -12,6 +13,18 @@ import PhotonGeocoderControl, {
 
 let pmtilesProtocolRegistered = false;
 let pmtilesProtocolInstance: Protocol | null = null;
+
+export type MapViewState = {
+  center: GeoCenter;
+  zoom: number;
+  pitch: number;
+  bearing: number;
+};
+
+export type MapApi = {
+  getCenter: () => GeoCenter | null;
+  screenToLngLat: (point: ClientPoint) => GeoPoint | null;
+};
 
 const INITIAL_VIEW_STATE = {
   longitude: 19.945,
@@ -41,24 +54,69 @@ export type MapProps = {
       } & Omit<PhotonGeocoderControlProps, "map">)
     | null;
   children?: React.ReactNode;
-  onMapInstance?: (map: maplibregl.Map) => void;
+  onMapReady?: (api: MapApi) => void;
   interactive?: boolean;
-  onMapClick?: (coords: { lng: number; lat: number }) => void;
+  onMapClick?: (coords: GeoPoint) => void;
   onCanvasPointerMissed?: (event: MouseEvent) => void;
   interactiveLayerIds?: string[];
+  onViewChange?: (view: MapViewState) => void;
 };
 
 export default function Map({
   geocoder = null,
   children,
-  onMapInstance,
+  onMapReady,
   interactive = true,
   onMapClick,
   onCanvasPointerMissed,
   interactiveLayerIds,
+  onViewChange,
 }: MapProps) {
   ensurePmtilesProtocol();
   const [mapInstance, setMapInstance] = useState<maplibregl.Map | null>(null);
+  const mapRef = useRef<maplibregl.Map | null>(null);
+  const [canvasCenter, setCanvasCenter] = useState({
+    longitude: INITIAL_VIEW_STATE.longitude,
+    latitude: INITIAL_VIEW_STATE.latitude,
+  });
+  const mapApi = useMemo<MapApi>(
+    () => ({
+      getCenter: () => {
+        const center = mapRef.current?.getCenter();
+        if (!center) return null;
+        return { lng: center.lng, lat: center.lat };
+      },
+      screenToLngLat: ({ clientX, clientY }) => {
+        const map = mapRef.current;
+        if (!map) return null;
+        const rect = map.getCanvas().getBoundingClientRect();
+        const x = clientX - rect.left;
+        const y = clientY - rect.top;
+        const lngLat = map.unproject([x, y]);
+        return { lng: lngLat.lng, lat: lngLat.lat };
+      },
+    }),
+    [],
+  );
+
+  const syncViewFromMap = useCallback(
+    (map: maplibregl.Map) => {
+      const center = map.getCenter();
+      const next = { longitude: center.lng, latitude: center.lat };
+      setCanvasCenter((prev) =>
+        prev.longitude === next.longitude && prev.latitude === next.latitude
+          ? prev
+          : next,
+      );
+      onViewChange?.({
+        center: { lng: next.longitude, lat: next.latitude },
+        zoom: map.getZoom(),
+        pitch: map.getPitch(),
+        bearing: map.getBearing(),
+      });
+    },
+    [onViewChange],
+  );
 
   return (
     <div
@@ -85,8 +143,13 @@ export default function Map({
         mapStyle={MAP_STYLE}
         onLoad={(event) => {
           const map = event.target as maplibregl.Map;
+          mapRef.current = map;
           setMapInstance(map);
-          onMapInstance?.(map);
+          syncViewFromMap(map);
+          onMapReady?.(mapApi);
+        }}
+        onMoveEnd={(event) => {
+          syncViewFromMap(event.target as maplibregl.Map);
         }}
         onClick={(event) => {
           onMapClick?.({ lng: event.lngLat.lng, lat: event.lngLat.lat });
@@ -95,7 +158,7 @@ export default function Map({
         <Source
           id="protomaps"
           type="vector"
-          url="pmtiles:///europe_west.pmtiles"
+          url="pmtiles://https://pub-e9b147ce12714178ac88c0aefdf3b47f.r2.dev/europe_west.pmtiles"
         >
           <Layer
             id="buildings-3d"
@@ -135,8 +198,8 @@ export default function Map({
           />
         ) : null}
         <Canvas
-          latitude={INITIAL_VIEW_STATE.latitude}
-          longitude={INITIAL_VIEW_STATE.longitude}
+          latitude={canvasCenter.latitude}
+          longitude={canvasCenter.longitude}
           onPointerMissed={(event) => {
             onCanvasPointerMissed?.(event);
           }}

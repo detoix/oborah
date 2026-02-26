@@ -7,28 +7,29 @@ import React, {
   useRef,
   useState,
 } from "react";
+import type { GeoCenter, GeoPoint } from "@oborah/geo";
 import { CATALOG_ITEMS } from "@oborah/catalog";
+import type { MapApi, MapViewState } from "@oborah/map";
 import { MapViewport } from "@/components/MapViewport";
 import { DesktopSidebar } from "@/components/DesktopSidebar";
 import { MobileOverlay } from "@/components/MobileOverlay";
 import { usePlannerStore } from "@/stores/use-planner-store";
-import maplibregl from "maplibre-gl";
 import { usePlannerUI } from "@/hooks/use-planner-ui";
 import { useMapDrop } from "@/hooks/use-map-drop";
 
-const MAP_ORIGIN = {
-  longitude: 19.945,
-  latitude: 50.0647,
+const MAP_ORIGIN: GeoCenter = {
+  lng: 19.945,
+  lat: 50.0647,
 };
 
 export default function Home() {
-  const mapInstanceRef = useRef<maplibregl.Map | null>(null);
-  const desktopMapInstanceRef = useRef<maplibregl.Map | null>(null);
-  const desktopMapPanelRef = useRef<HTMLDivElement | null>(null);
+  const mapApiRef = useRef<MapApi | null>(null);
+  const desktopMapApiRef = useRef<MapApi | null>(null);
   const suppressMapPlacementUntilRef = useRef(0);
   const [isDesktopViewport, setIsDesktopViewport] = useState<boolean | null>(
     null,
   );
+  const [mapOrigin, setMapOrigin] = useState<GeoCenter>(MAP_ORIGIN);
 
   const {
     placedBuildings,
@@ -52,14 +53,14 @@ export default function Home() {
     updateDraftPosition,
     updateDraftRotation,
     rotateDraft,
-  } = usePlannerUI(mapInstanceRef, selectBuilding);
+  } = usePlannerUI(mapApiRef, selectBuilding);
 
   const {
     isCatalogDragging,
     setIsCatalogDragging,
     handleDragOver,
     handleDrop,
-  } = useMapDrop(desktopMapInstanceRef, desktopMapPanelRef, addBuilding);
+  } = useMapDrop(desktopMapApiRef, addBuilding);
 
   const buildingsWithConfig = useMemo(() => {
     return placedBuildings.map((b) => ({
@@ -110,7 +111,7 @@ export default function Home() {
   }, [addBuilding, draftPlacement, exitDraftMode]);
 
   const handleMapClickForPlacement = useCallback(
-    (coords: { lng: number; lat: number }) => {
+    (coords: GeoPoint) => {
       if (!draftPlacement) return;
       if (
         isInteractingWithModel ||
@@ -127,8 +128,16 @@ export default function Home() {
     suppressMapPlacementUntilRef.current = performance.now() + 250;
   }, []);
 
+  const handleMapViewChange = useCallback((view: MapViewState) => {
+    setMapOrigin((prev) =>
+      prev.lng === view.center.lng && prev.lat === view.center.lat
+        ? prev
+        : view.center,
+    );
+  }, []);
+
   const handleMoveBuilding = useCallback(
-    (id: string, position: { lng: number; lat: number }) => {
+    (id: string, position: GeoPoint) => {
       if (id === "draft-placement") {
         updateDraftPosition(position);
         return;
@@ -177,15 +186,16 @@ export default function Home() {
       {isDesktopViewport ? (
         <div className="w-full h-full flex">
           <DesktopSidebar setIsCatalogDragging={setIsCatalogDragging} />
-          <div ref={desktopMapPanelRef} className="flex-1 relative">
+          <div className="flex-1 relative">
             <MapViewport
               buildings={buildingsWithConfig}
               selectedId={selectedBuildingId}
-              origin={MAP_ORIGIN}
+              origin={mapOrigin}
               isInteractingWithModel={isInteractingWithModel}
-              onMapInstance={(map) => {
-                desktopMapInstanceRef.current = map;
-                mapInstanceRef.current = map;
+              onViewChange={handleMapViewChange}
+              onMapReady={(api) => {
+                desktopMapApiRef.current = api;
+                mapApiRef.current = api;
               }}
               onCanvasPointerMissed={() => selectBuilding(null)}
               onMoveBuilding={moveBuilding}
@@ -214,10 +224,11 @@ export default function Home() {
           <MapViewport
             buildings={allVisibleBuildings}
             selectedId={activeSelectedId}
-            origin={MAP_ORIGIN}
+            origin={mapOrigin}
             isInteractingWithModel={isInteractingWithModel}
-            onMapInstance={(map) => {
-              mapInstanceRef.current = map;
+            onViewChange={handleMapViewChange}
+            onMapReady={(api) => {
+              mapApiRef.current = api;
             }}
             onCanvasPointerMissed={() => handleSelectBuilding(null)}
             onMapClick={handleMapClickForPlacement}

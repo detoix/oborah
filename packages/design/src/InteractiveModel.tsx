@@ -2,6 +2,7 @@
 
 import React, { useCallback, useMemo, useRef } from "react";
 import { ThreeEvent, useThree } from "@react-three/fiber";
+import type { GeoCenter, GeoPoint } from "@oborah/geo";
 import { coordsToVector3, vector3ToCoords } from "react-three-map/maplibre";
 import * as THREE from "three";
 
@@ -15,11 +16,11 @@ export interface VisualConfig {
 
 interface InteractiveModelProps {
   id: string;
-  position: { lng: number; lat: number };
+  position: GeoPoint;
   rotationY: number;
   isSelected: boolean;
   visualConfig?: VisualConfig;
-  origin: { longitude: number; latitude: number };
+  origin: GeoCenter;
   onMove: (lng: number, lat: number) => void;
   onRotate: (rotation: number) => void;
   onClick: () => void;
@@ -28,7 +29,7 @@ interface InteractiveModelProps {
 }
 
 const ROTATION_RING_WIDTH = 1.0;
-const DEFAULT_ORIGIN = { longitude: 19.945, latitude: 50.0647 } as const;
+const DEFAULT_ORIGIN = { lng: 19.945, lat: 50.0647 } as const;
 type PointerCaptureTarget = EventTarget & {
   setPointerCapture?: (pointerId: number) => void;
   releasePointerCapture?: (pointerId: number) => void;
@@ -67,8 +68,8 @@ export function InteractiveModel({
   const safeOrigin = useMemo(() => {
     if (
       origin &&
-      Number.isFinite(origin.longitude) &&
-      Number.isFinite(origin.latitude)
+      Number.isFinite(origin.lng) &&
+      Number.isFinite(origin.lat)
     ) {
       return origin;
     }
@@ -87,8 +88,8 @@ export function InteractiveModel({
       `InteractiveModel(${id}): invalid position, falling back to origin`,
       lngLat,
     );
-    return { lng: safeOrigin.longitude, lat: safeOrigin.latitude };
-  }, [id, lngLat, safeOrigin.latitude, safeOrigin.longitude]);
+    return { lng: safeOrigin.lng, lat: safeOrigin.lat };
+  }, [id, lngLat, safeOrigin.lat, safeOrigin.lng]);
 
   const groundPlane = useMemo(
     () => new THREE.Plane(new THREE.Vector3(0, 1, 0), 0),
@@ -98,7 +99,7 @@ export function InteractiveModel({
   const position = useMemo(() => {
     const [x, y, z] = coordsToVector3(
       { longitude: safeLngLat.lng, latitude: safeLngLat.lat },
-      safeOrigin,
+      { longitude: safeOrigin.lng, latitude: safeOrigin.lat },
     );
     return [x, y, z] as [number, number, number];
   }, [safeLngLat.lat, safeLngLat.lng, safeOrigin]);
@@ -156,7 +157,10 @@ export function InteractiveModel({
       )?.releasePointerCapture?.(e.nativeEvent.pointerId);
 
       const pos = groupRef.current.position;
-      const coords = vector3ToCoords([pos.x, pos.y, pos.z], safeOrigin);
+      const coords = vector3ToCoords([pos.x, pos.y, pos.z], {
+        longitude: safeOrigin.lng,
+        latitude: safeOrigin.lat,
+      });
       onMove(coords.longitude, coords.latitude);
     },
     [onMove, onInteractionEnd, safeOrigin],
