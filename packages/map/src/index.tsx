@@ -158,7 +158,7 @@ export default function Map({
         <Source
           id="protomaps"
           type="vector"
-          url="pmtiles://https://pub-e9b147ce12714178ac88c0aefdf3b47f.r2.dev/europe_west.pmtiles"
+          url="pmtiles://https://pub-e9b147ce12714178ac88c0aefdf3b47f.r2.dev/europe_west.pmtiles/europe_west.pmtiles"
         >
           <Layer
             id="buildings-3d"
