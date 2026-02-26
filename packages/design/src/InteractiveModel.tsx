@@ -1,7 +1,8 @@
 "use client";
 
 import React, { useCallback, useMemo, useRef } from "react";
-import { ThreeEvent, useThree } from "@react-three/fiber";
+import { useGLTF } from "@react-three/drei";
+import { ThreeEvent } from "@react-three/fiber";
 import type { GeoCenter, GeoPoint } from "@oborah/geo";
 import { coordsToVector3, vector3ToCoords } from "react-three-map/maplibre";
 import * as THREE from "three";
@@ -12,6 +13,7 @@ export interface VisualConfig {
   soilColor?: string;
   opacity?: number;
   transparent?: boolean;
+  modelUrl?: string;
 }
 
 interface InteractiveModelProps {
@@ -34,6 +36,55 @@ type PointerCaptureTarget = EventTarget & {
   setPointerCapture?: (pointerId: number) => void;
   releasePointerCapture?: (pointerId: number) => void;
 };
+
+function GlbModel({
+  url,
+  targetArgs,
+}: {
+  url: string;
+  targetArgs: [number, number, number];
+}) {
+  const gltf = useGLTF(url);
+
+  const { scene, scale, offset } = useMemo(() => {
+    const clonedScene = gltf.scene.clone(true);
+    clonedScene.traverse((obj) => {
+      if (obj instanceof THREE.Mesh) {
+        obj.castShadow = true;
+        obj.receiveShadow = true;
+        obj.raycast = () => {};
+      }
+    });
+
+    clonedScene.updateWorldMatrix(true, true);
+    const bbox = new THREE.Box3().setFromObject(clonedScene);
+    const size = bbox.getSize(new THREE.Vector3());
+    const center = bbox.getCenter(new THREE.Vector3());
+    const safeSize = new THREE.Vector3(
+      Math.max(size.x, 0.001),
+      Math.max(size.y, 0.001),
+      Math.max(size.z, 0.001),
+    );
+
+    const uniformScale = Math.min(
+      targetArgs[0] / safeSize.x,
+      targetArgs[1] / safeSize.y,
+      targetArgs[2] / safeSize.z,
+    );
+
+    return {
+      scene: clonedScene,
+      scale: uniformScale,
+      offset: new THREE.Vector3(
+        -center.x * uniformScale,
+        -center.y * uniformScale,
+        -center.z * uniformScale,
+      ),
+    };
+  }, [gltf.scene, targetArgs]);
+
+  return <primitive object={scene} scale={scale} position={offset} />;
+}
 
 export function InteractiveModel({
   id,
@@ -64,6 +115,7 @@ export function InteractiveModel({
   );
 
   const activeConfig = visualConfig ?? defaultVisualConfig;
+  const hasGlbModel = Boolean(activeConfig.modelUrl);
 
   const safeOrigin = useMemo(() => {
     if (
@@ -237,15 +289,24 @@ export function InteractiveModel({
         <boxGeometry args={activeConfig.args} />
         <meshStandardMaterial
           color={activeConfig.color}
-          opacity={activeConfig.opacity ?? 1}
-          transparent={activeConfig.transparent ?? false}
+          opacity={
+            hasGlbModel ? (isSelected ? 0.18 : 0.01) : (activeConfig.opacity ?? 1)
+          }
+          transparent={hasGlbModel || (activeConfig.transparent ?? false)}
           emissive={isSelected ? "#ffffff" : "#000000"}
           emissiveIntensity={isSelected ? 0.3 : 0}
+          depthWrite={!hasGlbModel}
         />
       </mesh>
 
+      {activeConfig.modelUrl && (
+        <React.Suspense fallback={null}>
+          <GlbModel url={activeConfig.modelUrl} targetArgs={activeConfig.args} />
+        </React.Suspense>
+      )}
+
       {/* Soil layer for beds/planters */}
-      {activeConfig.soilColor && (
+      {activeConfig.soilColor && !hasGlbModel && (
         <mesh position={[0, activeConfig.args[1] / 2 + 0.05, 0]}>
           <boxGeometry
             args={[activeConfig.args[0] - 0.2, 0.1, activeConfig.args[2] - 0.2]}

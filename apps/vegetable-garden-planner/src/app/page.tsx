@@ -11,6 +11,7 @@ import type { GeoCenter, GeoPoint } from "@oborah/geo";
 import { CATALOG_ITEMS } from "@oborah/catalog";
 import type { MapApi, MapViewState } from "@oborah/map";
 import { MapViewport } from "@/components/MapViewport";
+import { ARViewport } from "@/components/ARViewport";
 import { DesktopSidebar } from "@/components/DesktopSidebar";
 import { MobileOverlay } from "@/components/MobileOverlay";
 import { usePlannerStore } from "@/stores/use-planner-store";
@@ -29,6 +30,7 @@ export default function Home() {
   const [isDesktopViewport, setIsDesktopViewport] = useState<boolean | null>(
     null,
   );
+  const [isArMode, setIsArMode] = useState<boolean>(false);
   const [mapOrigin, setMapOrigin] = useState<GeoCenter>(MAP_ORIGIN);
 
   const {
@@ -244,6 +246,22 @@ export default function Home() {
               setInteractingWithModel(false);
             }}
           />
+
+          {/* AR Viewport Toggle Support */}
+          {isArMode && (
+            <div className="absolute inset-0 z-10 bg-black">
+              <ARViewport
+                buildings={allVisibleBuildings}
+                selectedId={activeSelectedId}
+                onSelectBuilding={handleSelectBuilding}
+                onMoveBuilding={handleMoveBuilding}
+                onRotateBuilding={handleRotateBuilding}
+                onInteractionStart={() => setInteractingWithModel(true)}
+                onInteractionEnd={() => setInteractingWithModel(false)}
+              />
+            </div>
+          )}
+
           <MobileOverlay
             sheetSnap={sheetSnap}
             setSheetSnap={setSheetSnap}
@@ -255,6 +273,8 @@ export default function Home() {
             acceptDraft={acceptDraft}
             rotateDraft={rotateDraft}
             sheetHeightClass={sheetHeightClass}
+            isArMode={isArMode}
+            onToggleArMode={() => setIsArMode(!isArMode)}
           />
         </div>
       )}

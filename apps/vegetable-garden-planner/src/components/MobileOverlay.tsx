@@ -15,6 +15,8 @@ interface MobileOverlayProps {
   acceptDraft: () => void;
   rotateDraft: () => void;
   sheetHeightClass: string;
+  isArMode: boolean;
+  onToggleArMode: () => void;
 }
 
 export function MobileOverlay({
@@ -28,6 +30,8 @@ export function MobileOverlay({
   acceptDraft,
   rotateDraft,
   sheetHeightClass,
+  isArMode,
+  onToggleArMode,
 }: MobileOverlayProps) {
   const isSheetExpanded = sheetSnap !== "collapsed";
 
@@ -79,7 +83,19 @@ export function MobileOverlay({
 
           {/* Browse mode */}
           {mobileMode === "browse" && (
-            <div className="flex min-h-0 flex-1 flex-col pb-3">
+            <div className="flex min-h-0 flex-1 flex-col pb-3 relative">
+              
+              {/* Toggle to AR View */}
+              <button
+                type="button"
+                onClick={onToggleArMode}
+                className="absolute right-4 -top-14 h-11 px-4 rounded-full bg-indigo-600 shadow-md border border-indigo-500 font-semibold text-white/90 active:scale-95 transition-transform flex items-center justify-center pointer-events-auto"
+                aria-label="Toggle AR"
+              >
+                <div className="mr-2">📷</div>
+                {isArMode ? "Exit AR" : "View in AR"}
+              </button>
+
               {isSheetExpanded ? (
                 <div className="px-4">
                   <p className="mb-2.5 text-[11px] font-semibold uppercase tracking-widest text-black/35">

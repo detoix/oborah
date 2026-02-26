@@ -1,3 +1,5 @@
+export * from "./math";
+
 export type GeoPoint = {
   lng: number;
   lat: number;

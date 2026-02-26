@@ -4,6 +4,8 @@ import React from "react";
 import type { GeoCenter, GeoPoint } from "@oborah/geo";
 import { InteractiveModel, type VisualConfig } from "./InteractiveModel";
 
+export { InteractiveModel, type VisualConfig };
+
 export interface DesignBuilding {
   id: string;
   kind: string;

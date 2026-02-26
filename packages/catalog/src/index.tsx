@@ -14,6 +14,7 @@ export type CatalogItem = {
     soilColor?: string;
     opacity?: number;
     transparent?: boolean;
+    modelUrl?: string;
   };
 };
 
@@ -63,6 +64,8 @@ export const CATALOG_ITEMS: CatalogItem[] = [
     visualConfig: {
       args: [3, 4, 3],
       color: "#424242", // Dark Grey
+      modelUrl:
+        "https://pub-e9b147ce12714178ac88c0aefdf3b47f.r2.dev/3d_models/Untitled.glb",
     },
   },
 ];
