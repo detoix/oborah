@@ -1,8 +1,0 @@
-{
-  "$schema": "./node_modules/wrangler/config-schema.json",
-  "name": "vegetable-garden-planner",
-  "main": ".worker-next/index.mjs",
-  "compatibility_date": "2025-09-27",
-  "compatibility_flags": ["nodejs_compat"],
-  "assets": { "directory": ".worker-next/assets", "binding": "ASSETS" }
-}
