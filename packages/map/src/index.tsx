@@ -174,7 +174,7 @@ export default function Map({
           onMapClick?.({ lng: event.lngLat.lng, lat: event.lngLat.lat });
         }}
       >
-        <GeolocateControl position="top-right" trackUserLocation={true} showUserHeading={true} />
+        <GeolocateControl position="top-right" trackUserLocation={true} />
         
         {userLocation && (
           <>
