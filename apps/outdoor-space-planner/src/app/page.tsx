@@ -454,8 +454,8 @@ export default function Home() {
               aria-label="Resize AR split view"
             >
               <span
-                className={`h-1.5 w-12 rounded-full shadow ${
-                  isArSplitDragging ? "bg-emerald-600" : "bg-white/95"
+                className={`h-1 w-10 rounded-full ${
+                  isArSplitDragging ? "bg-black/25" : "bg-black/15"
                 }`}
               />
             </button>
