@@ -25,10 +25,9 @@ export interface ARSensorFusionOffset {
 
 export interface ARLayerProps {
   buildings: ARBuilding[];
-  origin: GeoCenter; // The user's current physical location
+  livePosition: GeoCenter; // The user's live Kalman position
   selectedId: string | null;
   calibrationOffset?: ARCalibrationOffset;
-  sensorFusionOffset?: ARSensorFusionOffset;
   onSelectBuilding: (id: string | null) => void;
   onMoveBuilding: (id: string, position: GeoPoint) => void;
   onRotateBuilding: (id: string, rotation: number) => void;
@@ -38,23 +37,22 @@ export interface ARLayerProps {
 
 export function ARLayer({
   buildings = [],
-  origin,
+  livePosition,
   selectedId = null,
   calibrationOffset,
-  sensorFusionOffset,
   onSelectBuilding = () => {},
   onMoveBuilding = () => {},
   onRotateBuilding = () => {},
   onInteractionStart,
   onInteractionEnd,
 }: ARLayerProps) {
-  const totalX = (calibrationOffset?.x ?? 0) + (sensorFusionOffset?.x ?? 0);
-  const totalZ = (calibrationOffset?.z ?? 0) + (sensorFusionOffset?.z ?? 0);
+  const totalX = calibrationOffset?.x ?? 0;
+  const totalZ = calibrationOffset?.z ?? 0;
   const calibRotY = calibrationOffset?.rotationY ?? 0;
   // Convert GPS positions to local Cartesian coordinates relative to user
   const buildingsWithOffsets = useMemo(() => {
     const calculated = buildings.map((b) => {
-      const offset = calculateLocalCartesianOffset(origin, b.position);
+      const offset = calculateLocalCartesianOffset(livePosition, b.position);
       return { ...b, offset };
     });
 
@@ -69,7 +67,7 @@ export function ARLayer({
     });
 
     return calculated;
-  }, [buildings, origin]);
+  }, [buildings, livePosition]);
 
   return (
     <>

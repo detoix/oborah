@@ -13,13 +13,13 @@ import type { DeviceOrientationControls as DeviceOrientationControlsImpl } from 
 import type { GeoPoint } from "@oborah/geo";
 import { ARLayer, type ARBuilding } from "./ARLayer";
 import type { StabilizedLocation } from "@/hooks/use-stabilized-location";
-import type { SensorFusionResult } from "@/hooks/use-sensor-fusion";
+import type { CompassResult } from "@/hooks/use-sensor-fusion";
 import { useARSessionStore } from "@/stores/use-ar-session-store";
 
 interface ARViewportProps {
   buildings: ARBuilding[];
   location: StabilizedLocation;
-  sensorFusion: SensorFusionResult;
+  compass: CompassResult;
   selectedId: string | null;
   onHeadingChange?: (heading: number | null) => void;
   onSelectBuilding: (id: string | null) => void;
@@ -40,7 +40,7 @@ function normalizeSignedDegrees(deg: number): number {
 export function ARViewport({
   buildings,
   location,
-  sensorFusion,
+  compass,
   selectedId,
   onHeadingChange,
   onSelectBuilding,
@@ -56,21 +56,15 @@ export function ARViewport({
   const [error, setError] = useState<string | null>(null);
   const [needsPermission, setNeedsPermission] = useState(false);
 
-  const {
-    phase,
-    stabilizedOrigin,
-    calibrationOffset,
-    setStabilizedOrigin,
-    setCalibrationOffset,
-    confirmCalibration,
-    setPhase,
-  } = useARSessionStore();
+  const { phase, calibrationOffset, setCalibrationOffset, setPhase } =
+    useARSessionStore();
 
   // One-time compass alignment for DeviceOrientationControls
   const headingAligned = useRef(false);
 
+  // Reset heading alignment when phase changes
   useEffect(() => {
-    if (phase === "calibrating") {
+    if (phase === "tracking") {
       headingAligned.current = false;
     }
   }, [phase]);
@@ -78,26 +72,24 @@ export function ARViewport({
   useEffect(() => {
     if (!onHeadingChange) return;
 
-    if (sensorFusion.hasInitialized.current) {
-      onHeadingChange(sensorFusion.heading);
+    if (compass.hasInitialized.current) {
+      onHeadingChange(compass.heading);
     } else {
       onHeadingChange(null);
     }
-  }, [onHeadingChange, sensorFusion.heading, sensorFusion.hasInitialized]);
+  }, [onHeadingChange, compass.heading, compass.hasInitialized]);
 
   useEffect(() => {
     if (
-      phase === "calibrating" &&
+      phase === "tracking" &&
       !headingAligned.current &&
-      sensorFusion.hasInitialized.current
+      compass.hasInitialized.current
     ) {
       const controls = orientationControlsRef.current;
       const rawAlphaDeg = controls?.deviceOrientation?.alpha;
       if (!controls || typeof rawAlphaDeg !== "number") return;
 
-      // Sensor fusion heading is clockwise from North.
-      // DeviceOrientationControls expects alpha where heading = (360 - alpha).
-      const liveHeading = sensorFusion.headingRef.current;
+      const liveHeading = compass.headingRef.current;
       const targetAlphaDeg = normalizeZeroTo360(360 - liveHeading);
       const rawAlphaNormalized = normalizeZeroTo360(rawAlphaDeg);
       const offsetDeg = normalizeSignedDegrees(
@@ -108,7 +100,7 @@ export function ARViewport({
       controls.update();
       headingAligned.current = true;
     }
-  }, [phase, sensorFusion]);
+  }, [phase, compass, onHeadingChange]);
 
   // Phase transitions based on GPS stabilization status
   useEffect(() => {
@@ -117,38 +109,12 @@ export function ARViewport({
       location.position &&
       phase === "gps_acquiring"
     ) {
-      setStabilizedOrigin(location.position);
-      // Auto-transition to calibrating after a brief stabilized state
-      Promise.resolve().then(() => setPhase("calibrating"));
+      Promise.resolve().then(() => setPhase("tracking"));
     }
-  }, [
-    location.isStationary,
-    location.position,
-    phase,
-    setStabilizedOrigin,
-    setPhase,
-  ]);
+  }, [location.isStationary, location.position, phase, setPhase]);
 
   // Derived error
   const combinedError = error || location.error;
-
-  // Recalibration: when stationary again after drift exceeded, re-lock
-  useEffect(() => {
-    if (
-      phase === "recalibrating" &&
-      location.isStationary &&
-      location.position
-    ) {
-      setStabilizedOrigin(location.position);
-      confirmCalibration();
-    }
-  }, [
-    phase,
-    location.isStationary,
-    location.position,
-    setStabilizedOrigin,
-    confirmCalibration,
-  ]);
 
   // Check if we need orientation/motion permissions (iOS 13+)
   useEffect(() => {
@@ -232,7 +198,7 @@ export function ARViewport({
       : null;
 
   // The origin to use for ARLayer
-  const activeOrigin = stabilizedOrigin ?? location.position;
+  const activeOrigin = location.position;
 
   const debugBuildings = useMemo(() => {
     return buildings;
@@ -293,9 +259,7 @@ export function ARViewport({
         const dx = (e.touches[0].clientX - lastTouch.current.x) * mpp;
         const dy = (e.touches[0].clientY - lastTouch.current.y) * mpp;
 
-        const headingDeg = sensorFusion.hasInitialized.current
-          ? sensorFusion.heading
-          : 0;
+        const headingDeg = compass.hasInitialized.current ? compass.heading : 0;
         const headingRad = ((headingDeg % 360) * Math.PI) / 180;
 
         const worldDx = dx * Math.cos(headingRad) - dy * Math.sin(headingRad);
@@ -324,7 +288,7 @@ export function ARViewport({
         lastAngle.current = currentAngle;
       }
     },
-    [calibrationOffset, setCalibrationOffset, getMetersPerPixel, sensorFusion],
+    [calibrationOffset, setCalibrationOffset, getMetersPerPixel, compass],
   );
 
   const handleTouchEnd = useCallback((e: React.TouchEvent) => {
@@ -412,14 +376,9 @@ export function ARViewport({
 
             <ARLayer
               buildings={debugBuildings}
-              origin={activeOrigin}
+              livePosition={activeOrigin}
               selectedId={selectedId}
               calibrationOffset={calibrationOffset}
-              sensorFusionOffset={
-                phase === "tracking" || phase === "recalibrating"
-                  ? sensorFusion.estimatedOffset
-                  : undefined
-              }
               onSelectBuilding={onSelectBuilding}
               onMoveBuilding={onMoveBuilding}
               onRotateBuilding={onRotateBuilding}

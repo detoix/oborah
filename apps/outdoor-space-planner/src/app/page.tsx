@@ -19,7 +19,7 @@ import { useARSessionStore } from "@/stores/use-ar-session-store";
 import { usePlannerUI } from "@/hooks/use-planner-ui";
 import { useMapDrop } from "@/hooks/use-map-drop";
 import { useStabilizedLocation } from "@/hooks/use-stabilized-location";
-import { useSensorFusion } from "@/hooks/use-sensor-fusion";
+import { useCompass } from "@/hooks/use-sensor-fusion";
 import { useUrlState } from "@/hooks/use-url-state";
 
 const MAP_ORIGIN: GeoCenter = {
@@ -38,49 +38,33 @@ export default function Home() {
   const [mapOrigin, setMapOrigin] = useState<GeoCenter>(MAP_ORIGIN);
   const [arCompassHeading, setArCompassHeading] = useState<number | null>(null);
   const stabilized = useStabilizedLocation();
-  const {
-    phase,
-    stabilizedOrigin,
-    requestRecalibration,
-    setStabilizedOrigin,
-    setPhase,
-  } = useARSessionStore();
+  const { phase, setPhase } = useARSessionStore();
 
-  // The global EKF (Extended Kalman Filter) runs continuously
-  const sensorFusion = useSensorFusion({
-    enabled: true, // Run EKF globally to power both Map and AR
-    stabilizedOrigin: stabilizedOrigin || stabilized.position,
-    onDriftExceeded: requestRecalibration,
-  });
+  // Pure compass — no GPS, no Kalman filter
+  const compass = useCompass(true);
 
-  // When the simple 1Hz GPS stabilized filter gets its first solid lock,
-  // we capture it as the absolute origin for the EKF to relative-track from.
+  // Transition to tracking as soon as we have a GPS fix
   useEffect(() => {
-    if (stabilized.isStationary && stabilized.position && !stabilizedOrigin) {
-      setStabilizedOrigin(stabilized.position);
-      if (phase === "gps_acquiring") {
-        setPhase("tracking");
-      }
+    if (
+      stabilized.isStationary &&
+      stabilized.position &&
+      phase === "gps_acquiring"
+    ) {
+      setPhase("tracking");
     }
-  }, [
-    stabilized.isStationary,
-    stabilized.position,
-    stabilizedOrigin,
-    phase,
-    setStabilizedOrigin,
-    setPhase,
-  ]);
+  }, [stabilized.isStationary, stabilized.position, phase, setPhase]);
 
+  // The blue dot on the map = single GPS source of truth
   const stabilizedUserLocation = useMemo(
     () =>
-      sensorFusion.globalPosition
+      stabilized.position
         ? {
-            lng: sensorFusion.globalPosition.lng,
-            lat: sensorFusion.globalPosition.lat,
+            lng: stabilized.position.lng,
+            lat: stabilized.position.lat,
             accuracy: stabilized.accuracy ?? 0,
           }
         : null,
-    [sensorFusion.globalPosition, stabilized.accuracy],
+    [stabilized.position, stabilized.accuracy],
   );
 
   const {
@@ -299,7 +283,7 @@ export default function Home() {
                 buildings={allVisibleBuildings}
                 selectedId={activeSelectedId}
                 location={stabilized}
-                sensorFusion={sensorFusion}
+                compass={compass}
                 onHeadingChange={setArCompassHeading}
                 onSelectBuilding={handleSelectBuilding}
                 onMoveBuilding={handleMoveBuilding}
