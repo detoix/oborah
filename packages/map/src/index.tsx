@@ -1,7 +1,12 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import MapGL, { Layer, Source, GeolocateControl, Marker } from "react-map-gl/maplibre";
+import MapGL, {
+  Layer,
+  Source,
+  GeolocateControl,
+  Marker,
+} from "react-map-gl/maplibre";
 import { Canvas } from "react-three-map/maplibre";
 import { Protocol } from "pmtiles";
 import maplibregl from "maplibre-gl";
@@ -60,6 +65,7 @@ export type MapProps = {
   onCanvasPointerMissed?: (event: MouseEvent) => void;
   interactiveLayerIds?: string[];
   onViewChange?: (view: MapViewState) => void;
+  userLocation?: { lng: number; lat: number; accuracy: number } | null;
 };
 
 export default function Map({
@@ -71,29 +77,39 @@ export default function Map({
   onCanvasPointerMissed,
   interactiveLayerIds,
   onViewChange,
+  userLocation: userLocationProp,
 }: MapProps) {
   ensurePmtilesProtocol();
   const [mapInstance, setMapInstance] = useState<maplibregl.Map | null>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
-  const [userLocation, setUserLocation] = useState<{ lng: number; lat: number; accuracy: number } | null>(null);
+  const [internalLocation, setInternalLocation] = useState<{
+    lng: number;
+    lat: number;
+    accuracy: number;
+  } | null>(null);
 
   useEffect(() => {
+    // Skip internal GPS watcher when an external stabilized location is provided
+    if (userLocationProp !== undefined) return;
     if (typeof window === "undefined" || !navigator.geolocation) return;
 
     const watchId = navigator.geolocation.watchPosition(
       (pos) => {
-        setUserLocation({
+        setInternalLocation({
           lng: pos.coords.longitude,
           lat: pos.coords.latitude,
           accuracy: pos.coords.accuracy,
         });
       },
       (err) => console.error("Map geolocation error:", err),
-      { enableHighAccuracy: true, maximumAge: 0, timeout: 10000 }
+      { enableHighAccuracy: true, maximumAge: 0, timeout: 10000 },
     );
 
     return () => navigator.geolocation.clearWatch(watchId);
-  }, []);
+  }, [userLocationProp !== undefined]);
+
+  const userLocation =
+    userLocationProp !== undefined ? userLocationProp : internalLocation;
   const [canvasCenter, setCanvasCenter] = useState({
     longitude: INITIAL_VIEW_STATE.longitude,
     latitude: INITIAL_VIEW_STATE.latitude,
@@ -174,8 +190,8 @@ export default function Map({
           onMapClick?.({ lng: event.lngLat.lng, lat: event.lngLat.lat });
         }}
       >
-        <GeolocateControl position="top-right" trackUserLocation={true} />
-        
+        <GeolocateControl position="bottom-right" trackUserLocation={true} />
+
         {userLocation && (
           <>
             <Source
@@ -198,8 +214,10 @@ export default function Map({
                     "interpolate",
                     ["exponential", 2],
                     ["zoom"],
-                    0, 0,
-                    20, userLocation.accuracy // This is an approximation since circle-radius is in pixels, but for debugging it helps
+                    0,
+                    0,
+                    20,
+                    userLocation.accuracy, // This is an approximation since circle-radius is in pixels, but for debugging it helps
                   ],
                   "circle-color": "#007cbf",
                   "circle-opacity": 0.15,
@@ -208,7 +226,11 @@ export default function Map({
                 }}
               />
             </Source>
-            <Marker longitude={userLocation.lng} latitude={userLocation.lat} color="#007cbf" />
+            <Marker
+              longitude={userLocation.lng}
+              latitude={userLocation.lat}
+              color="#007cbf"
+            />
           </>
         )}
 

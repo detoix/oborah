@@ -15,8 +15,10 @@ import { ARViewport } from "@/components/ARViewport";
 import { DesktopSidebar } from "@/components/DesktopSidebar";
 import { MobileOverlay } from "@/components/MobileOverlay";
 import { usePlannerStore } from "@/stores/use-planner-store";
+import { useARSessionStore } from "@/stores/use-ar-session-store";
 import { usePlannerUI } from "@/hooks/use-planner-ui";
 import { useMapDrop } from "@/hooks/use-map-drop";
+import { useStabilizedLocation } from "@/hooks/use-stabilized-location";
 
 const MAP_ORIGIN: GeoCenter = {
   lng: 19.945,
@@ -31,7 +33,20 @@ export default function Home() {
     null,
   );
   const [isArMode, setIsArMode] = useState<boolean>(false);
+  const resetARSession = useARSessionStore((s) => s.resetSession);
   const [mapOrigin, setMapOrigin] = useState<GeoCenter>(MAP_ORIGIN);
+  const stabilized = useStabilizedLocation();
+  const stabilizedUserLocation = useMemo(
+    () =>
+      stabilized.position
+        ? {
+            lng: stabilized.position.lng,
+            lat: stabilized.position.lat,
+            accuracy: stabilized.accuracy ?? 0,
+          }
+        : null,
+    [stabilized.position, stabilized.accuracy],
+  );
 
   const {
     placedBuildings,
@@ -168,23 +183,14 @@ export default function Home() {
     [draftPlacement, selectBuilding],
   );
 
-  const sheetHeightClass =
-    mobileMode === "edit" || mobileMode === "material"
-      ? sheetSnap === "full"
-        ? "h-[94dvh]"
-        : "h-48"
-      : sheetSnap === "collapsed"
-        ? "h-32"
-        : sheetSnap === "half"
-          ? "h-[50dvh]"
-          : "h-[94dvh]";
-
   if (isDesktopViewport === null) {
-    return <main className="w-screen h-screen overflow-hidden bg-white" />;
+    return (
+      <main className="w-screen h-[100svh] overflow-hidden bg-white md:h-screen" />
+    );
   }
 
   return (
-    <main className="w-screen h-screen overflow-hidden">
+    <main className="w-screen h-[100svh] overflow-hidden md:h-screen">
       {isDesktopViewport ? (
         <div className="w-full h-full flex">
           <DesktopSidebar setIsCatalogDragging={setIsCatalogDragging} />
@@ -211,6 +217,7 @@ export default function Home() {
                 suppressNextPlacementTap();
                 setInteractingWithModel(false);
               }}
+              userLocation={stabilizedUserLocation}
             />
             {isCatalogDragging && (
               <div
@@ -245,6 +252,7 @@ export default function Home() {
               suppressNextPlacementTap();
               setInteractingWithModel(false);
             }}
+            userLocation={stabilizedUserLocation}
           />
 
           {/* AR Viewport Toggle Support */}
@@ -272,9 +280,16 @@ export default function Home() {
             exitDraftMode={exitDraftMode}
             acceptDraft={acceptDraft}
             rotateDraft={rotateDraft}
-            sheetHeightClass={sheetHeightClass}
             isArMode={isArMode}
-            onToggleArMode={() => setIsArMode(!isArMode)}
+            onToggleArMode={() => {
+              const next = !isArMode;
+              setIsArMode(next);
+              if (!next) {
+                resetARSession();
+              } else {
+                setSheetSnap("collapsed");
+              }
+            }}
           />
         </div>
       )}

@@ -18,6 +18,7 @@ interface MapViewportProps {
   onSelectBuilding: (id: string | null) => void;
   onInteractionStart: () => void;
   onInteractionEnd: () => void;
+  userLocation?: { lng: number; lat: number; accuracy: number } | null;
 }
 
 export function MapViewport({
@@ -34,6 +35,7 @@ export function MapViewport({
   onSelectBuilding,
   onInteractionStart,
   onInteractionEnd,
+  userLocation,
 }: MapViewportProps) {
   return (
     <Map
@@ -42,6 +44,7 @@ export function MapViewport({
       onViewChange={onViewChange}
       onCanvasPointerMissed={onCanvasPointerMissed}
       onMapClick={onMapClick}
+      userLocation={userLocation}
       geocoder={{
         provider: "photon",
         position: "top-left",

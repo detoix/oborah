@@ -1,7 +1,11 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import type { CatalogItem, CatalogItemId, CatalogItemKind } from "@oborah/catalog";
+import type {
+  CatalogItem,
+  CatalogItemId,
+  CatalogItemKind,
+} from "@oborah/catalog";
 import type { GeoPoint } from "@oborah/geo";
 import type { MapApi } from "@oborah/map";
 
@@ -44,6 +48,7 @@ export function usePlannerUI(
         rotationY: 0,
       });
       setMobileMode("edit");
+      // Keep placement controls contained in the collapsed view
       setSheetSnap("collapsed");
       selectBuilding(null);
     },
@@ -56,12 +61,9 @@ export function usePlannerUI(
     setSheetSnap(browseSnapBeforeEdit);
   }, [browseSnapBeforeEdit]);
 
-  const updateDraftPosition = useCallback(
-    (position: GeoPoint) => {
-      setDraftPlacement((draft) => (draft ? { ...draft, position } : draft));
-    },
-    [],
-  );
+  const updateDraftPosition = useCallback((position: GeoPoint) => {
+    setDraftPlacement((draft) => (draft ? { ...draft, position } : draft));
+  }, []);
 
   const updateDraftRotation = useCallback((rotationY: number) => {
     setDraftPlacement((draft) => (draft ? { ...draft, rotationY } : draft));

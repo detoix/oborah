@@ -5,6 +5,11 @@ export type GeoPoint = {
   lat: number;
 };
 
+export type TimestampedGeoPoint = GeoPoint & {
+  timestamp: number;
+  accuracy?: number;
+};
+
 export type GeoCenter = GeoPoint;
 
 export type ClientPoint = {

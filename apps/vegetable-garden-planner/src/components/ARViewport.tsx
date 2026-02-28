@@ -1,10 +1,22 @@
 "use client";
 
-import React, { useEffect, useRef, useState } from "react";
+import React, {
+  useEffect,
+  useRef,
+  useState,
+  useCallback,
+  useMemo,
+} from "react";
 import { Canvas } from "@react-three/fiber";
 import { DeviceOrientationControls } from "@react-three/drei";
-import type { GeoCenter, GeoPoint } from "@oborah/geo";
+import type { DeviceOrientationControls as DeviceOrientationControlsImpl } from "three-stdlib";
+import { offsetGeoPoint, type GeoPoint } from "@oborah/geo";
 import { ARLayer, type ARBuilding } from "./ARLayer";
+import { CalibrationOverlay } from "./CalibrationOverlay";
+import { DriftConfidenceBar } from "./DriftConfidenceBar";
+import { useStabilizedLocation } from "@/hooks/use-stabilized-location";
+import { useSensorFusion } from "@/hooks/use-sensor-fusion";
+import { useARSessionStore } from "@/stores/use-ar-session-store";
 
 interface ARViewportProps {
   buildings: ARBuilding[];
@@ -14,6 +26,14 @@ interface ARViewportProps {
   onRotateBuilding: (id: string, rot: number) => void;
   onInteractionStart: () => void;
   onInteractionEnd: () => void;
+}
+
+function normalizeZeroTo360(deg: number): number {
+  return ((deg % 360) + 360) % 360;
+}
+
+function normalizeSignedDegrees(deg: number): number {
+  return ((deg + 540) % 360) - 180;
 }
 
 export function ARViewport({
@@ -26,25 +46,136 @@ export function ARViewport({
   onInteractionEnd,
 }: ARViewportProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
-  const [userOrigin, setUserOrigin] = useState<GeoCenter | null>(null);
+  const orientationControlsRef = useRef<DeviceOrientationControlsImpl | null>(
+    null,
+  );
   const [error, setError] = useState<string | null>(null);
-  const [compassHeading, setCompassHeading] = useState<number | null>(null);
   const [needsPermission, setNeedsPermission] = useState(false);
-  const [isCalibrated, setIsCalibrated] = useState(false);
 
-  // Check if we need orientation permissions (iOS 13+)
+  // AR session state machine
+  const {
+    phase,
+    stabilizedOrigin,
+    calibrationOffset,
+    driftConfidence,
+    setStabilizedOrigin,
+    setCalibrationOffset,
+    setDriftConfidence,
+    confirmCalibration,
+    requestRecalibration,
+    setPhase,
+  } = useARSessionStore();
+
+  // Phase 1: GPS stabilization
+  const location = useStabilizedLocation();
+
+  // Sensor fusion (active during calibrating/tracking/recalibrating)
+  const sensorFusion = useSensorFusion({
+    enabled:
+      phase === "calibrating" ||
+      phase === "tracking" ||
+      phase === "recalibrating",
+    stabilizedOrigin,
+    calibrationOffset,
+    onDriftExceeded: requestRecalibration,
+  });
+
+  // One-time compass alignment for DeviceOrientationControls
+  const headingAligned = useRef(false);
+
+  useEffect(() => {
+    if (phase === "calibrating") {
+      headingAligned.current = false;
+    }
+  }, [phase]);
+
+  useEffect(() => {
+    if (
+      phase === "calibrating" &&
+      !headingAligned.current &&
+      sensorFusion.heading !== 0
+    ) {
+      const controls = orientationControlsRef.current;
+      const rawAlphaDeg = controls?.deviceOrientation?.alpha;
+      if (!controls || typeof rawAlphaDeg !== "number") return;
+
+      // Sensor fusion heading is clockwise from North.
+      // DeviceOrientationControls expects alpha where heading = (360 - alpha).
+      const targetAlphaDeg = normalizeZeroTo360(360 - sensorFusion.heading);
+      const rawAlphaNormalized = normalizeZeroTo360(rawAlphaDeg);
+      const offsetDeg = normalizeSignedDegrees(
+        targetAlphaDeg - rawAlphaNormalized,
+      );
+
+      controls.alphaOffset = (offsetDeg * Math.PI) / 180;
+      controls.update();
+      headingAligned.current = true;
+    }
+  }, [phase, sensorFusion.heading]);
+
+  // Phase transitions based on GPS stabilization status
+  useEffect(() => {
+    if (
+      location.status === "anchored" &&
+      location.position &&
+      phase === "gps_acquiring"
+    ) {
+      setStabilizedOrigin(location.position);
+      // Auto-transition to calibrating after a brief stabilized state
+      Promise.resolve().then(() => setPhase("calibrating"));
+    }
+  }, [
+    location.status,
+    location.position,
+    phase,
+    setStabilizedOrigin,
+    setPhase,
+  ]);
+
+  // Propagate location errors
+  useEffect(() => {
+    if (location.error) {
+      setError(location.error);
+    }
+  }, [location.error]);
+
+  // Sync drift confidence from sensor fusion
+  useEffect(() => {
+    if (phase === "tracking" || phase === "recalibrating") {
+      setDriftConfidence(sensorFusion.confidence);
+    }
+  }, [sensorFusion.confidence, phase, setDriftConfidence]);
+
+  // Recalibration: when stationary again after drift exceeded, re-lock
+  useEffect(() => {
+    if (
+      phase === "recalibrating" &&
+      location.isStationary &&
+      location.position
+    ) {
+      setStabilizedOrigin(location.position);
+      confirmCalibration();
+    }
+  }, [
+    phase,
+    location.isStationary,
+    location.position,
+    setStabilizedOrigin,
+    confirmCalibration,
+  ]);
+
+  // Check if we need orientation/motion permissions (iOS 13+)
   useEffect(() => {
     const OrientationEvent = (window as any)
       .DeviceOrientationEvent as unknown as {
       requestPermission?: () => Promise<string>;
     };
     if (typeof OrientationEvent?.requestPermission === "function") {
-      // Use a microtask to avoid synchronous setState warning in useEffect
       Promise.resolve().then(() => setNeedsPermission(true));
     }
   }, []);
 
-  // 1. Initialize Camera Stream
+  // Initialize Camera Stream
   useEffect(() => {
     let stream: MediaStream;
     async function setupCamera() {
@@ -68,136 +199,65 @@ export function ARViewport({
     };
   }, []);
 
-  // Moving Average State for GPS Smoothing
-  const recentPositions = useRef<{ lat: number; lng: number }[]>([]);
-  const SMOOTHING_SAMPLES = 5;
-
-  // 2. Initialize Geolocation
-  useEffect(() => {
-    if (!navigator.geolocation) {
-      Promise.resolve().then(() =>
-        setError("Geolocation is not supported by your browser."),
-      );
-      return;
-    }
-
-    const watchId = navigator.geolocation.watchPosition(
-      (position) => {
-        // Drop readings with terrible accuracy to prevent massive jumps
-        if (
-          position.coords.accuracy > 10 &&
-          recentPositions.current.length > 0
-        ) {
-          console.log(
-            `[ARViewport] Ignored bad GPS reading. Accuracy: ${position.coords.accuracy}m`,
-          );
-          return;
-        }
-
-        const newPos = {
-          lat: position.coords.latitude,
-          lng: position.coords.longitude,
-        };
-
-        recentPositions.current.push(newPos);
-        if (recentPositions.current.length > SMOOTHING_SAMPLES) {
-          recentPositions.current.shift();
-        }
-
-        const avgLat =
-          recentPositions.current.reduce((sum, p) => sum + p.lat, 0) /
-          recentPositions.current.length;
-        const avgLng =
-          recentPositions.current.reduce((sum, p) => sum + p.lng, 0) /
-          recentPositions.current.length;
-
-        console.log(
-          `[ARViewport] Live User GPS updated (Smoothed): [Lng: ${avgLng.toFixed(7)}, Lat: ${avgLat.toFixed(7)}] (Raw Accuracy: ${position.coords.accuracy}m)`,
-        );
-
-        setUserOrigin({
-          lat: avgLat,
-          lng: avgLng,
-        });
-      },
-      (err) => {
-        console.error("Error watching position", err);
-        // Fallback for debugging if GPS fails
-        if (!userOrigin && buildings.length > 0) {
-          setUserOrigin(buildings[0].position);
-        }
-      },
-      {
-        enableHighAccuracy: true,
-        maximumAge: 0,
-        timeout: 10000,
-      },
-    );
-
-    return () => navigator.geolocation.clearWatch(watchId);
-  }, [userOrigin, buildings]);
-
-  // 3. Absolute Orientation / Compass Heading
-  useEffect(() => {
-    const handleOrientation = (e: DeviceOrientationEvent) => {
-      let heading: number | null = null;
-
-      // iOS specific
-      const webkitEvent = e as unknown as { webkitCompassHeading?: number };
-      if (webkitEvent.webkitCompassHeading !== undefined) {
-        heading = webkitEvent.webkitCompassHeading;
-      }
-      // Android / Standard absolute orientation
-      else if (e.absolute && e.alpha !== null) {
-        // Standard alpha is 0 at North, increases counter-clockwise (0..360)
-        // We want compass heading (0 at North, increases clockwise)
-        heading = (360 - e.alpha) % 360;
-      }
-
-      if (heading !== null && !isCalibrated) {
-        // We only want to capture the "Lock" once to align the scene
-        // Or we can continuously update it if the sensor drifts
-        setCompassHeading(heading);
-        setIsCalibrated(true);
-      }
-    };
-
-    if (typeof window !== "undefined") {
-      window.addEventListener(
-        "deviceorientationabsolute",
-        handleOrientation as EventListener,
-      );
-      window.addEventListener("deviceorientation", handleOrientation);
-    }
-
-    return () => {
-      window.removeEventListener(
-        "deviceorientationabsolute",
-        handleOrientation as EventListener,
-      );
-      window.removeEventListener("deviceorientation", handleOrientation);
-    };
-  }, [isCalibrated]);
-
-  const requestPermissions = async () => {
+  const requestPermissions = useCallback(async () => {
     const OrientationEvent = (window as any)
       .DeviceOrientationEvent as unknown as {
       requestPermission?: () => Promise<string>;
     };
-    if (typeof OrientationEvent?.requestPermission === "function") {
-      try {
+    const MotionEvent = (window as any).DeviceMotionEvent as unknown as {
+      requestPermission?: () => Promise<string>;
+    };
+
+    try {
+      // Request orientation permission
+      if (typeof OrientationEvent?.requestPermission === "function") {
         const response = await OrientationEvent.requestPermission();
-        if (response === "granted") {
-          setNeedsPermission(false);
-        } else {
+        if (response !== "granted") {
           setError("Permission to access orientation was denied.");
+          return;
         }
-      } catch (err) {
-        console.error("Permission request failed", err);
-        setError("Failed to request orientation permissions.");
       }
+
+      // Request motion permission (iOS)
+      if (typeof MotionEvent?.requestPermission === "function") {
+        const response = await MotionEvent.requestPermission();
+        if (response !== "granted") {
+          console.warn("DeviceMotion permission denied — GPS-only mode");
+        }
+      }
+
+      setNeedsPermission(false);
+    } catch (err) {
+      console.error("Permission request failed", err);
+      setError("Failed to request sensor permissions.");
     }
-  };
+  }, []);
+
+  // Status text for acquiring phase
+  const statusText =
+    phase === "gps_acquiring"
+      ? location.status === "acquiring"
+        ? "Acquiring GPS Signal..."
+        : location.status === "stabilizing"
+          ? `Stabilizing... Stand still (${location.isStationary ? "stationary" : "moving"})`
+          : "Acquiring GPS Signal..."
+      : null;
+
+  // The origin to use for ARLayer
+  const activeOrigin = stabilizedOrigin ?? location.position;
+
+  const debugBuildings = useMemo(() => {
+    if (!activeOrigin) return buildings;
+    const westPoint = offsetGeoPoint(activeOrigin, -10, 0); // 10m West
+    const debugBuilding = {
+      id: "debug-west-10m",
+      kind: "raised-bed",
+      position: westPoint,
+      rotationY: 0,
+      visualConfig: undefined,
+    } as ARBuilding;
+    return [...buildings, debugBuilding];
+  }, [buildings, activeOrigin]);
 
   return (
     <div className="relative w-full h-full bg-black overflow-hidden">
@@ -217,69 +277,88 @@ export function ARViewport({
         </div>
       )}
 
-      {/* Loading Overlay */}
-      {!userOrigin && !error && (
+      {/* GPS Acquiring Overlay */}
+      {phase === "gps_acquiring" && !error && (
         <div className="absolute inset-0 z-40 bg-black/50 flex items-center justify-center backdrop-blur-sm">
-          <div className="text-white text-lg font-medium animate-pulse">
-            Acquiring GPS Signal...
+          <div className="text-center">
+            <div className="text-white text-lg font-medium animate-pulse">
+              {statusText}
+            </div>
+            {location.accuracy !== null && (
+              <div className="text-gray-400 text-sm mt-2">
+                Accuracy: {location.accuracy.toFixed(0)}m
+              </div>
+            )}
           </div>
         </div>
       )}
 
-      {/* Permission / Calibration Overlay */}
+      {/* iOS Permission Overlay */}
       {needsPermission && (
         <div className="absolute inset-0 z-50 bg-black/70 flex flex-col items-center justify-center p-6 text-center">
           <h2 className="text-white text-xl font-bold mb-4">
-            Compass Calibration
+            Sensor Access Required
           </h2>
           <p className="text-gray-300 mb-6">
             To align AR objects with reality, we need access to your
-            device&apos;s compass.
+            device&apos;s compass and motion sensors.
           </p>
           <button
             onClick={requestPermissions}
             className="px-6 py-3 bg-blue-600 text-white rounded-full font-bold shadow-lg active:scale-95 transition-transform"
           >
-            Allow Compass Access
+            Allow Sensor Access
           </button>
         </div>
       )}
 
-      {!isCalibrated && !needsPermission && userOrigin && (
-        <div className="absolute bottom-24 left-0 right-0 z-30 flex justify-center">
-          <div className="bg-black/40 backdrop-blur-md px-4 py-2 rounded-full text-white text-sm">
-            Point phone North to calibrate...
+      {/* Calibration Overlay (Phase 2) */}
+      {phase === "calibrating" && (
+        <CalibrationOverlay
+          offset={calibrationOffset}
+          onChange={setCalibrationOffset}
+          onConfirm={confirmCalibration}
+          onCancel={() => setPhase("gps_acquiring")}
+        />
+      )}
+
+      {/* Drift Confidence Bar (Phase 3: tracking) */}
+      {(phase === "tracking" || phase === "recalibrating") && (
+        <DriftConfidenceBar
+          confidence={driftConfidence}
+          onRecalibrate={requestRecalibration}
+        />
+      )}
+
+      {/* Recalibrating banner */}
+      {phase === "recalibrating" && (
+        <div className="absolute top-16 left-4 right-4 z-30 flex justify-center">
+          <div className="bg-yellow-600/80 backdrop-blur-md px-4 py-2 rounded-full text-white text-sm animate-pulse">
+            Stand still to recalibrate...
           </div>
         </div>
       )}
 
-      {/* 3D Canvas rendering on top with transparent background */}
-      {userOrigin && (
+      {/* 3D Canvas — visible once we have an origin (stabilized or calibrating+) */}
+      {activeOrigin && phase !== "gps_acquiring" && (
         <div className="absolute inset-0 z-10">
           <Canvas
             onPointerMissed={() => onSelectBuilding(null)}
             camera={{ position: [0, 0, 0], fov: 75 }}
           >
-            {/* The magic Drei component that binds mobile gyroscope to the ThreeJS camera 
-                By default, DeviceOrientationControls assumes looking down the -Z axis.
-                We align the scene by rotating the container group based on the absolute compass heading.
-                 Compass Heading: 0 = North, 90 = East, 180 = South, 270 = West
-                 In Three.js, we want -Z to be North.
-            */}
-            <group
-              rotation={[
-                0,
-                compassHeading ? (compassHeading * Math.PI) / 180 : 0,
-                0,
-              ]}
-            >
-              <DeviceOrientationControls />
-            </group>
+            {/* Gyroscope camera controls — heading managed by sensor fusion, no wrapper group needed */}
+            <DeviceOrientationControls ref={orientationControlsRef} />
 
             <ARLayer
-              buildings={buildings}
-              origin={userOrigin}
+              buildings={debugBuildings}
+              origin={activeOrigin}
               selectedId={selectedId}
+              calibrationOffset={calibrationOffset}
+              sensorFusionOffset={
+                phase === "tracking" || phase === "recalibrating"
+                  ? { x: 0, z: 0 } // Disabled as per user request (originally sensorFusion.estimatedOffset)
+                  : undefined
+              }
               onSelectBuilding={onSelectBuilding}
               onMoveBuilding={onMoveBuilding}
               onRotateBuilding={onRotateBuilding}
