@@ -329,7 +329,7 @@ export function ARViewport({
       {phase === "recalibrating" && (
         <div className="absolute top-16 left-4 right-4 z-30 flex justify-center">
           <div className="bg-yellow-600/80 backdrop-blur-md px-4 py-2 rounded-full text-white text-sm animate-pulse">
-            Stand still to recalibrate...
+            Processing new GPS reading...
           </div>
         </div>
       )}
