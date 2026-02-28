@@ -19,6 +19,7 @@ import { useARSessionStore } from "@/stores/use-ar-session-store";
 import { usePlannerUI } from "@/hooks/use-planner-ui";
 import { useMapDrop } from "@/hooks/use-map-drop";
 import { useStabilizedLocation } from "@/hooks/use-stabilized-location";
+import { useSensorFusion } from "@/hooks/use-sensor-fusion";
 import { useUrlState } from "@/hooks/use-url-state";
 
 const MAP_ORIGIN: GeoCenter = {
@@ -38,16 +39,51 @@ export default function Home() {
   const [mapOrigin, setMapOrigin] = useState<GeoCenter>(MAP_ORIGIN);
   const [arCompassHeading, setArCompassHeading] = useState<number | null>(null);
   const stabilized = useStabilizedLocation();
+  const {
+    phase,
+    stabilizedOrigin,
+    calibrationOffset,
+    requestRecalibration,
+    setStabilizedOrigin,
+    setPhase,
+  } = useARSessionStore();
+
+  // The global EKF (Extended Kalman Filter) runs continuously
+  const sensorFusion = useSensorFusion({
+    enabled: true, // Run EKF globally to power both Map and AR
+    stabilizedOrigin: stabilizedOrigin || stabilized.position,
+    calibrationOffset,
+    onDriftExceeded: requestRecalibration,
+  });
+
+  // When the simple 1Hz GPS stabilized filter gets its first solid lock,
+  // we capture it as the absolute origin for the EKF to relative-track from.
+  useEffect(() => {
+    if (stabilized.isStationary && stabilized.position && !stabilizedOrigin) {
+      setStabilizedOrigin(stabilized.position);
+      if (phase === "gps_acquiring") {
+        setPhase("calibrating");
+      }
+    }
+  }, [
+    stabilized.isStationary,
+    stabilized.position,
+    stabilizedOrigin,
+    phase,
+    setStabilizedOrigin,
+    setPhase,
+  ]);
+
   const stabilizedUserLocation = useMemo(
     () =>
-      stabilized.position
+      sensorFusion.globalPosition
         ? {
-            lng: stabilized.position.lng,
-            lat: stabilized.position.lat,
+            lng: sensorFusion.globalPosition.lng,
+            lat: sensorFusion.globalPosition.lat,
             accuracy: stabilized.accuracy ?? 0,
           }
         : null,
-    [stabilized.position, stabilized.accuracy],
+    [sensorFusion.globalPosition, stabilized.accuracy],
   );
 
   const {
@@ -266,6 +302,7 @@ export default function Home() {
                 buildings={allVisibleBuildings}
                 selectedId={activeSelectedId}
                 location={stabilized}
+                sensorFusion={sensorFusion}
                 onHeadingChange={setArCompassHeading}
                 onSelectBuilding={handleSelectBuilding}
                 onMoveBuilding={handleMoveBuilding}
@@ -289,14 +326,12 @@ export default function Home() {
             isArMode={isArMode}
             compassHeading={arCompassHeading}
             onLocateMe={() => {
-              navigator.geolocation.getCurrentPosition(
-                (pos) => {
-                  mapApiRef.current?.flyTo({
-                    center: [pos.coords.longitude, pos.coords.latitude],
-                    zoom: 17,
-                  });
-                },
-              );
+              navigator.geolocation.getCurrentPosition((pos) => {
+                mapApiRef.current?.flyTo({
+                  center: [pos.coords.longitude, pos.coords.latitude],
+                  zoom: 17,
+                });
+              });
             }}
             onToggleArMode={() => {
               const next = !isArMode;

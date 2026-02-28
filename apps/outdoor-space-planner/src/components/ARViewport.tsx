@@ -15,12 +15,13 @@ import { ARLayer, type ARBuilding } from "./ARLayer";
 import { CalibrationOverlay } from "./CalibrationOverlay";
 import { DriftConfidenceBar } from "./DriftConfidenceBar";
 import type { StabilizedLocation } from "@/hooks/use-stabilized-location";
-import { useSensorFusion } from "@/hooks/use-sensor-fusion";
+import type { SensorFusionResult } from "@/hooks/use-sensor-fusion";
 import { useARSessionStore } from "@/stores/use-ar-session-store";
 
 interface ARViewportProps {
   buildings: ARBuilding[];
   location: StabilizedLocation;
+  sensorFusion: SensorFusionResult;
   selectedId: string | null;
   onHeadingChange?: (heading: number | null) => void;
   onSelectBuilding: (id: string | null) => void;
@@ -41,6 +42,7 @@ function normalizeSignedDegrees(deg: number): number {
 export function ARViewport({
   buildings,
   location,
+  sensorFusion,
   selectedId,
   onHeadingChange,
   onSelectBuilding,
@@ -69,17 +71,6 @@ export function ARViewport({
     requestRecalibration,
     setPhase,
   } = useARSessionStore();
-
-  // Sensor fusion (active during calibrating/tracking/recalibrating)
-  const sensorFusion = useSensorFusion({
-    enabled:
-      phase === "calibrating" ||
-      phase === "tracking" ||
-      phase === "recalibrating",
-    stabilizedOrigin,
-    calibrationOffset,
-    onDriftExceeded: requestRecalibration,
-  });
 
   // One-time compass alignment for DeviceOrientationControls
   const headingAligned = useRef(false);

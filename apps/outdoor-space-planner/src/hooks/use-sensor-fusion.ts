@@ -2,12 +2,14 @@
 
 import { useEffect, useRef, useCallback, useState } from "react";
 import type { GeoPoint } from "@oborah/geo";
-import { calculateLocalCartesianOffset } from "@oborah/geo";
+import { calculateLocalCartesianOffset, offsetGeoPoint } from "@oborah/geo";
 import type { CalibrationOffset } from "@/stores/use-ar-session-store";
 
 export interface SensorFusionResult {
   /** The filtered cartesian offset (X, Z) relative to the stabilized origin */
   estimatedOffset: { x: number; z: number };
+  /** The filtered global geographical coordinate (LatLng) */
+  globalPosition: GeoPoint | null;
   /** Low-passed compass heading */
   heading: number;
   /** Drift confidence logic (1.0 = good, 0 = drifted too far) */
@@ -158,6 +160,7 @@ export function useSensorFusion({
 }: SensorFusionOptions): SensorFusionResult {
   const [result, setResult] = useState<SensorFusionResult>({
     estimatedOffset: { x: 0, z: 0 },
+    globalPosition: null,
     heading: 0,
     confidence: 1,
     usingAccelerometer: false,
@@ -375,9 +378,19 @@ export function useSensorFusion({
     // Push EKF state to React tree at 30fps for smooth AR feeling
     updateIntervalRef.current = setInterval(() => {
       const ekf = ekfRef.current;
+
+      let globalPos: GeoPoint | null = null;
+      if (stabilizedOrigin) {
+        // Reverse the EKF's X/Z tracking back into LatLng using the origin and the AR calibration
+        const calibratedX = ekf.x - calibrationOffset.x;
+        const calibratedZ = ekf.z - calibrationOffset.z;
+        globalPos = offsetGeoPoint(stabilizedOrigin, calibratedX, calibratedZ);
+      }
+
       setResult((prev) => ({
         ...prev,
         estimatedOffset: { x: ekf.x, z: ekf.z },
+        globalPosition: globalPos,
         heading: headingRef.current,
         confidence: confidenceRef.current,
         usingAccelerometer: hasAccelerometer.current,
@@ -394,7 +407,14 @@ export function useSensorFusion({
       if (watchId !== undefined) navigator.geolocation.clearWatch(watchId);
       if (updateIntervalRef.current) clearInterval(updateIntervalRef.current);
     };
-  }, [enabled, handleOrientation, handleMotion, applyGpsCorrection]);
+  }, [
+    enabled,
+    handleOrientation,
+    handleMotion,
+    applyGpsCorrection,
+    stabilizedOrigin,
+    calibrationOffset,
+  ]);
 
   // Reset EKF on re-enable
   useEffect(() => {
