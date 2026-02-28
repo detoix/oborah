@@ -261,6 +261,7 @@ export default function Home() {
               <ARViewport
                 buildings={allVisibleBuildings}
                 selectedId={activeSelectedId}
+                location={stabilized}
                 onSelectBuilding={handleSelectBuilding}
                 onMoveBuilding={handleMoveBuilding}
                 onRotateBuilding={handleRotateBuilding}

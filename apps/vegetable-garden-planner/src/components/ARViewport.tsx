@@ -10,16 +10,17 @@ import React, {
 import { Canvas } from "@react-three/fiber";
 import { DeviceOrientationControls } from "@react-three/drei";
 import type { DeviceOrientationControls as DeviceOrientationControlsImpl } from "three-stdlib";
-import { offsetGeoPoint, type GeoPoint } from "@oborah/geo";
+import type { GeoPoint } from "@oborah/geo";
 import { ARLayer, type ARBuilding } from "./ARLayer";
 import { CalibrationOverlay } from "./CalibrationOverlay";
 import { DriftConfidenceBar } from "./DriftConfidenceBar";
-import { useStabilizedLocation } from "@/hooks/use-stabilized-location";
+import type { StabilizedLocation } from "@/hooks/use-stabilized-location";
 import { useSensorFusion } from "@/hooks/use-sensor-fusion";
 import { useARSessionStore } from "@/stores/use-ar-session-store";
 
 interface ARViewportProps {
   buildings: ARBuilding[];
+  location: StabilizedLocation;
   selectedId: string | null;
   onSelectBuilding: (id: string | null) => void;
   onMoveBuilding: (id: string, position: GeoPoint) => void;
@@ -38,6 +39,7 @@ function normalizeSignedDegrees(deg: number): number {
 
 export function ARViewport({
   buildings,
+  location,
   selectedId,
   onSelectBuilding,
   onMoveBuilding,
@@ -65,9 +67,6 @@ export function ARViewport({
     requestRecalibration,
     setPhase,
   } = useARSessionStore();
-
-  // Phase 1: GPS stabilization
-  const location = useStabilizedLocation();
 
   // Sensor fusion (active during calibrating/tracking/recalibrating)
   const sensorFusion = useSensorFusion({
@@ -132,12 +131,8 @@ export function ARViewport({
     setPhase,
   ]);
 
-  // Propagate location errors
-  useEffect(() => {
-    if (location.error) {
-      setError(location.error);
-    }
-  }, [location.error]);
+  // Derived error
+  const combinedError = error || location.error;
 
   // Sync drift confidence from sensor fusion
   useEffect(() => {
@@ -146,11 +141,11 @@ export function ARViewport({
     }
   }, [sensorFusion.confidence, phase, setDriftConfidence]);
 
-  // Recalibration: when stationary again after drift exceeded, re-lock
+  // Recalibration: wait for a fresh anchored lock before re-locking
   useEffect(() => {
     if (
       phase === "recalibrating" &&
-      location.isStationary &&
+      location.status === "anchored" &&
       location.position
     ) {
       setStabilizedOrigin(location.position);
@@ -158,7 +153,7 @@ export function ARViewport({
     }
   }, [
     phase,
-    location.isStationary,
+    location.status,
     location.position,
     setStabilizedOrigin,
     confirmCalibration,
@@ -166,10 +161,11 @@ export function ARViewport({
 
   // Check if we need orientation/motion permissions (iOS 13+)
   useEffect(() => {
-    const OrientationEvent = (window as any)
-      .DeviceOrientationEvent as unknown as {
-      requestPermission?: () => Promise<string>;
-    };
+    const OrientationEvent = (
+      window as unknown as {
+        DeviceOrientationEvent?: { requestPermission?: () => Promise<string> };
+      }
+    ).DeviceOrientationEvent;
     if (typeof OrientationEvent?.requestPermission === "function") {
       Promise.resolve().then(() => setNeedsPermission(true));
     }
@@ -200,13 +196,12 @@ export function ARViewport({
   }, []);
 
   const requestPermissions = useCallback(async () => {
-    const OrientationEvent = (window as any)
-      .DeviceOrientationEvent as unknown as {
-      requestPermission?: () => Promise<string>;
+    const win = window as unknown as {
+      DeviceOrientationEvent?: { requestPermission?: () => Promise<string> };
+      DeviceMotionEvent?: { requestPermission?: () => Promise<string> };
     };
-    const MotionEvent = (window as any).DeviceMotionEvent as unknown as {
-      requestPermission?: () => Promise<string>;
-    };
+    const OrientationEvent = win.DeviceOrientationEvent;
+    const MotionEvent = win.DeviceMotionEvent;
 
     try {
       // Request orientation permission
@@ -247,17 +242,8 @@ export function ARViewport({
   const activeOrigin = stabilizedOrigin ?? location.position;
 
   const debugBuildings = useMemo(() => {
-    if (!activeOrigin) return buildings;
-    const westPoint = offsetGeoPoint(activeOrigin, -10, 0); // 10m West
-    const debugBuilding = {
-      id: "debug-west-10m",
-      kind: "raised-bed",
-      position: westPoint,
-      rotationY: 0,
-      visualConfig: undefined,
-    } as ARBuilding;
-    return [...buildings, debugBuilding];
-  }, [buildings, activeOrigin]);
+    return buildings;
+  }, [buildings]);
 
   return (
     <div className="relative w-full h-full bg-black overflow-hidden">
@@ -271,14 +257,14 @@ export function ARViewport({
       />
 
       {/* Error Overlay */}
-      {error && (
+      {combinedError && (
         <div className="absolute top-4 left-4 right-4 z-50 p-4 bg-red-500/80 text-white rounded-lg backdrop-blur-sm">
-          {error}
+          {combinedError}
         </div>
       )}
 
       {/* GPS Acquiring Overlay */}
-      {phase === "gps_acquiring" && !error && (
+      {phase === "gps_acquiring" && !combinedError && (
         <div className="absolute inset-0 z-40 bg-black/50 flex items-center justify-center backdrop-blur-sm">
           <div className="text-center">
             <div className="text-white text-lg font-medium animate-pulse">

@@ -79,6 +79,26 @@ export function ARLayer({
 
       {/* Root calibration group — shifts ALL buildings together */}
       <group position={[totalX, 0, totalZ]} rotation={[0, calibRotY, 0]}>
+        {/* Floating North Indicator at User's Feet */}
+        <group position={[0, -1.4, 0]}>
+          {/* North Text Label */}
+          <group position={[0, 0, -1.2]} rotation={[-Math.PI / 2, 0, 0]}>
+            <mesh>
+              <planeGeometry args={[0.5, 0.2]} />
+              <meshBasicMaterial color="red" transparent opacity={0.8} />
+            </mesh>
+          </group>
+          {/* Arrow pointing North (Negative Z) */}
+          <mesh position={[0, 0, -0.6]} rotation={[Math.PI / 2, 0, 0]}>
+            <cylinderGeometry args={[0.02, 0.02, 1, 8]} />
+            <meshStandardMaterial color="red" />
+          </mesh>
+          <mesh position={[0, 0, -1.1]} rotation={[-Math.PI / 2, 0, 0]}>
+            <coneGeometry args={[0.08, 0.2, 16]} />
+            <meshStandardMaterial color="red" />
+          </mesh>
+        </group>
+
         {/* We represent ground level as Y = -1.5m to simulate eye level at origin [0,0,0] */}
         {buildingsWithOffsets.map((b) => (
           <group key={b.id} position={[b.offset.x, -1.5, b.offset.z]}>
