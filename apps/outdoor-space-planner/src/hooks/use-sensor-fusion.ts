@@ -14,7 +14,6 @@ export interface SensorFusionResult {
   heading: number;
   /** Drift confidence logic (1.0 = good, 0 = drifted too far) */
   confidence: number;
-  usingAccelerometer: boolean;
   headingRef: React.MutableRefObject<number>;
   hasInitialized: React.MutableRefObject<boolean>;
 }
@@ -31,9 +30,9 @@ interface SensorFusionOptions {
 // EXTENDED KALMAN FILTER (EKF) TUNING CONSTANTS
 // Tweak these if the AR models slide too much or jitter
 // ----------------------------------------------------
-/** Process Noise ($Q$): How much we trust the accelerometer predict step.
- * Higher = we trust the IMU more, Lower = we distrust the IMU and rely on GPS. */
-const ACCEL_NOISE_VARIANCE = 0.8;
+// EXTENDED KALMAN FILTER (EKF) TUNING CONSTANTS
+// Tweak these if the AR models slide too much or jitter
+// ----------------------------------------------------
 /** Measurement Noise ($R$) Multiplier: How much we trust the GPS `accuracy` param.
  * Higher = we distrust the GPS and heavily smooth it. */
 const GPS_NOISE_MULTIPLIER = 1.5;
@@ -43,58 +42,16 @@ const DIVERGENCE_MAX = 15; // meters at which confidence = 0
 const CONFIDENCE_THRESHOLD = 0.3;
 
 /**
- * 2D Extended Kalman Filter fusing Accelerometer predicting + GPS observing.
+ * 2D Kalman Filter for pure GPS observation smoothing.
  */
 class EKF2D {
-  // State Vector: [PosX, PosZ, VelX, VelZ]
+  // State Vector: [PosX, PosZ]
   public x: number = 0;
   public z: number = 0;
-  public vx: number = 0;
-  public vz: number = 0;
 
   // Covariance Matrix (Uncertainty) - Simplified as independent variances for speed
   public p_x: number = 1;
   public p_z: number = 1;
-  public p_vx: number = 1;
-  public p_vz: number = 1;
-
-  /**
-   * Predict Phase (Runs 60Hz from Accelerometer)
-   * @param ax Linear acceleration North/East rotated (m/s^2)
-   * @param az Linear acceleration North/East rotated (m/s^2)
-   * @param dt Delta time in seconds
-   */
-  predict(ax: number, az: number, dt: number) {
-    // 1. State Prediction (Physics Engine)
-    // Pos = Pos + Vel*dt + 0.5*Accel*dt^2
-    this.x += this.vx * dt + 0.5 * ax * dt * dt;
-    this.z += this.vz * dt + 0.5 * az * dt * dt;
-
-    // Vel = Vel + Accel*dt
-    this.vx += ax * dt;
-    this.vz += az * dt;
-
-    // 2. Covariance Prediction (Uncertainty grows as we dead reckon)
-    // Simplified Process Noise Q
-    const qPos = 0.5 * dt * dt * ACCEL_NOISE_VARIANCE;
-    const qVel = dt * ACCEL_NOISE_VARIANCE;
-
-    this.p_x += qPos;
-    this.p_z += qPos;
-    this.p_vx += qVel;
-    this.p_vz += qVel;
-  }
-
-  /**
-   * Force velocity to zero (Zero Velocity Update) to prevent IMU drift when standing still.
-   */
-  applyZUPT() {
-    this.vx = 0;
-    this.vz = 0;
-    // Shrink velocity uncertainty heavily
-    this.p_vx *= 0.1;
-    this.p_vz *= 0.1;
-  }
 
   updateGPS(measX: number, measZ: number, measAccuracy: number) {
     // Measurement noise based on GPS API
@@ -127,7 +84,6 @@ export function useSensorFusion({
     globalPosition: null,
     heading: 0,
     confidence: 1,
-    usingAccelerometer: false,
     headingRef: { current: 0 },
     hasInitialized: { current: false },
   });
@@ -135,7 +91,6 @@ export function useSensorFusion({
   // EKF state
   const ekfRef = useRef<EKF2D>(new EKF2D());
   const confidenceRef = useRef(1);
-  const hasAccelerometer = useRef(false);
 
   // Time tracking
   const lastAccelTime = useRef<number>(0);
@@ -195,57 +150,7 @@ export function useSensorFusion({
       360;
   }, []);
 
-  // 2. Accelerometer (EKF Predict Phase)
-  const handleMotion = useCallback(
-    (e: DeviceMotionEvent) => {
-      if (!enabled) return;
-
-      const accel = e.acceleration; // Phone Linear Acceleration (without gravity!)
-      const gravity = e.accelerationIncludingGravity;
-
-      if (
-        !accel ||
-        accel.x === null ||
-        accel.y === null ||
-        accel.z === null ||
-        !gravity ||
-        gravity.x === null ||
-        gravity.y === null ||
-        gravity.z === null
-      ) {
-        return;
-      }
-
-      hasAccelerometer.current = true;
-      const now = performance.now();
-
-      if (lastAccelTime.current === 0) {
-        lastAccelTime.current = now;
-        return;
-      }
-
-      const dt = (now - lastAccelTime.current) / 1000;
-      lastAccelTime.current = now;
-
-      // Rotate local phone acceleration into World North/East offsets
-      // Simplification: We assume the phone is held relatively flat or upright, primarily rotating around Y (heading)
-      const headRad = (headingRef.current * Math.PI) / 180;
-
-      // In Three.js AR space:
-      // +X is East, -Z is North
-      // If phone tilts, we assume Z accel is forward, X is sideways.
-      const worldAccelX =
-        accel.x * Math.cos(headRad) + accel.z * Math.sin(headRad);
-      const worldAccelZ =
-        -accel.x * Math.sin(headRad) + accel.z * Math.cos(headRad);
-
-      const ekf = ekfRef.current;
-      ekf.predict(worldAccelX, worldAccelZ, dt);
-    },
-    [enabled],
-  );
-
-  // 3. GPS (EKF Update Phase)
+  // 2. GPS (EKF Update Phase)
   const applyGpsCorrection = useCallback(
     (gpsPoint: GeoPoint, accuracy: number) => {
       if (!stabilizedOrigin) return;
@@ -268,15 +173,12 @@ export function useSensorFusion({
       );
       confidenceRef.current = Math.max(0, 1 - divergence / DIVERGENCE_MAX);
 
-      if (!hasAccelerometer.current) {
-        // If we don't have IMU, the confidence decays instantly, relying entirely on GPS
-        confidenceRef.current *= 0.9;
-        // Without IMU, snap EKF to GPS instantly since predict step is dead
-        ekf.x = gpsCalibrated.x;
-        ekf.z = gpsCalibrated.z;
-        ekf.vx = 0;
-        ekf.vz = 0;
-      }
+      // If we don't have IMU (which is ALWAYS true now, since it is pure GPS),
+      // the confidence decays instantly when divergence is high, relying entirely on GPS pings
+      confidenceRef.current *= 0.9;
+      // Snap EKF to GPS instantly
+      ekf.x = gpsCalibrated.x;
+      ekf.z = gpsCalibrated.z;
 
       if (confidenceRef.current < CONFIDENCE_THRESHOLD) {
         onDriftExceededRef.current();
@@ -294,7 +196,6 @@ export function useSensorFusion({
       handleOrientation as EventListener,
     );
     window.addEventListener("deviceorientation", handleOrientation);
-    window.addEventListener("devicemotion", handleMotion);
 
     let watchId: number | undefined;
     if (navigator.geolocation) {
@@ -328,7 +229,6 @@ export function useSensorFusion({
         globalPosition: globalPos,
         heading: headingRef.current,
         confidence: confidenceRef.current,
-        usingAccelerometer: hasAccelerometer.current,
       }));
     }, 1000 / 30);
 
@@ -338,14 +238,12 @@ export function useSensorFusion({
         handleOrientation as EventListener,
       );
       window.removeEventListener("deviceorientation", handleOrientation);
-      window.removeEventListener("devicemotion", handleMotion);
       if (watchId !== undefined) navigator.geolocation.clearWatch(watchId);
       if (updateIntervalRef.current) clearInterval(updateIntervalRef.current);
     };
   }, [
     enabled,
     handleOrientation,
-    handleMotion,
     applyGpsCorrection,
     stabilizedOrigin,
     calibrationOffset,
