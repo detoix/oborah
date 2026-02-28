@@ -14,6 +14,8 @@ export interface SensorFusionResult {
   heading: number;
   confidence: number;
   usingAccelerometer: boolean;
+  headingRef: React.MutableRefObject<number>;
+  hasInitialized: React.MutableRefObject<boolean>;
 }
 
 interface SensorFusionOptions {
@@ -51,6 +53,8 @@ export function useSensorFusion({
     heading: 0,
     confidence: 1,
     usingAccelerometer: false,
+    headingRef: { current: 0 },
+    hasInitialized: { current: false },
   });
 
   // Dead reckoning state
@@ -64,6 +68,15 @@ export function useSensorFusion({
   const compassCos = useRef(1);
   const compassInitialized = useRef(false);
 
+  // Ensure refs are in initial result
+  useEffect(() => {
+    setResult((prev) => ({
+      ...prev,
+      headingRef,
+      hasInitialized: compassInitialized,
+    }));
+  }, []);
+
   // Step detection
   const lastStepTime = useRef(0);
 
@@ -72,50 +85,49 @@ export function useSensorFusion({
 
   // Drift callback ref to avoid stale closures
   const onDriftExceededRef = useRef(onDriftExceeded);
-  onDriftExceededRef.current = onDriftExceeded;
+  useEffect(() => {
+    onDriftExceededRef.current = onDriftExceeded;
+  }, [onDriftExceeded]);
 
   // Update interval ref
   const updateIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Compass handler
-  const handleOrientation = useCallback(
-    (e: DeviceOrientationEvent) => {
-      let heading: number | null = null;
+  const handleOrientation = useCallback((e: DeviceOrientationEvent) => {
+    let heading: number | null = null;
 
-      const webkitEvent = e as unknown as { webkitCompassHeading?: number };
-      if (webkitEvent.webkitCompassHeading !== undefined) {
-        heading = webkitEvent.webkitCompassHeading;
-      } else if (e.absolute && e.alpha !== null) {
-        heading = (360 - e.alpha) % 360;
-      }
+    const webkitEvent = e as unknown as { webkitCompassHeading?: number };
+    if (webkitEvent.webkitCompassHeading !== undefined) {
+      heading = webkitEvent.webkitCompassHeading;
+    } else if (e.absolute && e.alpha !== null) {
+      heading = (360 - e.alpha) % 360;
+    }
 
-      if (heading === null) return;
+    if (heading === null) return;
 
-      const headingRad = (heading * Math.PI) / 180;
-      // Seed filter from first real reading to avoid cold-start bias toward north
-      if (!compassInitialized.current) {
-        compassInitialized.current = true;
-        compassSin.current = Math.sin(headingRad);
-        compassCos.current = Math.cos(headingRad);
-      } else {
-        // Low-pass filter via sin/cos
-        const alpha = 0.15;
-        compassSin.current =
-          compassSin.current * (1 - alpha) + Math.sin(headingRad) * alpha;
-        compassCos.current =
-          compassCos.current * (1 - alpha) + Math.cos(headingRad) * alpha;
-      }
+    const headingRad = (heading * Math.PI) / 180;
+    // Seed filter from first real reading to avoid cold-start bias toward north
+    if (!compassInitialized.current) {
+      compassInitialized.current = true;
+      compassSin.current = Math.sin(headingRad);
+      compassCos.current = Math.cos(headingRad);
+    } else {
+      // Low-pass filter via sin/cos
+      const alpha = 0.15;
+      compassSin.current =
+        compassSin.current * (1 - alpha) + Math.sin(headingRad) * alpha;
+      compassCos.current =
+        compassCos.current * (1 - alpha) + Math.cos(headingRad) * alpha;
+    }
 
-      const filteredHeading =
-        ((Math.atan2(compassSin.current, compassCos.current) * 180) / Math.PI +
-          360) %
-        360;
+    const filteredHeading =
+      ((Math.atan2(compassSin.current, compassCos.current) * 180) / Math.PI +
+        360) %
+      360;
 
-      // Fuse with GPS bearing
-      headingRef.current = filteredHeading;
-    },
-    [],
-  );
+    // Fuse with GPS bearing
+    headingRef.current = filteredHeading;
+  }, []);
 
   // Step detection from accelerometer
   const handleMotion = useCallback(
@@ -128,9 +140,7 @@ export function useSensorFusion({
 
       hasAccelerometer.current = true;
 
-      const magnitude = Math.sqrt(
-        accel.x ** 2 + accel.y ** 2 + accel.z ** 2,
-      );
+      const magnitude = Math.sqrt(accel.x ** 2 + accel.y ** 2 + accel.z ** 2);
 
       const now = performance.now();
       if (
@@ -190,7 +200,10 @@ export function useSensorFusion({
       // Lerp DR position toward GPS (weight inversely proportional to accuracy)
       const lerpWeight = Math.max(
         MIN_LERP_WEIGHT,
-        Math.min(MAX_LERP_WEIGHT, MAX_LERP_WEIGHT * (10 / Math.max(accuracy, 1))),
+        Math.min(
+          MAX_LERP_WEIGHT,
+          MAX_LERP_WEIGHT * (10 / Math.max(accuracy, 1)),
+        ),
       );
 
       drPosition.current.x +=
@@ -248,11 +261,14 @@ export function useSensorFusion({
 
     // Push state to React at ~2Hz
     updateIntervalRef.current = setInterval(() => {
-      setResult({
-        estimatedOffset: { ...drPosition.current },
-        heading: headingRef.current,
-        confidence: confidenceRef.current,
-        usingAccelerometer: hasAccelerometer.current,
+      setResult((prev) => {
+        return {
+          ...prev,
+          estimatedOffset: { x: drPosition.current.x, z: drPosition.current.z },
+          heading: headingRef.current,
+          confidence: confidenceRef.current,
+          usingAccelerometer: hasAccelerometer.current,
+        };
       });
     }, 500);
 

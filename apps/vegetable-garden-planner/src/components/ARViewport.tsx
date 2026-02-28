@@ -92,7 +92,7 @@ export function ARViewport({
     if (
       phase === "calibrating" &&
       !headingAligned.current &&
-      sensorFusion.heading !== 0
+      sensorFusion.hasInitialized.current
     ) {
       const controls = orientationControlsRef.current;
       const rawAlphaDeg = controls?.deviceOrientation?.alpha;
@@ -100,7 +100,8 @@ export function ARViewport({
 
       // Sensor fusion heading is clockwise from North.
       // DeviceOrientationControls expects alpha where heading = (360 - alpha).
-      const targetAlphaDeg = normalizeZeroTo360(360 - sensorFusion.heading);
+      const liveHeading = sensorFusion.headingRef.current;
+      const targetAlphaDeg = normalizeZeroTo360(360 - liveHeading);
       const rawAlphaNormalized = normalizeZeroTo360(rawAlphaDeg);
       const offsetDeg = normalizeSignedDegrees(
         targetAlphaDeg - rawAlphaNormalized,
@@ -110,7 +111,7 @@ export function ARViewport({
       controls.update();
       headingAligned.current = true;
     }
-  }, [phase, sensorFusion.heading]);
+  }, [phase, sensorFusion]);
 
   // Phase transitions based on GPS stabilization status
   useEffect(() => {
