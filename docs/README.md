@@ -4,7 +4,7 @@
 
 A portfolio of hundreds of small, independent, ad-monetized web apps. Each app provides an interactive 3D experience grounded in real-world location data. Users enter an address and interact with a 3D scene overlaid on their actual environment — their yard, their roof, their street, their neighborhood.
 
-The current example app in this repo is a vegetable garden planner: a map-grounded layout tool for arranging beds, planters, and related garden elements in a real space.
+The current example app in this repo is an outdoor space planner: a map-grounded layout tool for arranging beds, planters, and related garden elements in a real space.
 
 ## Why does this work?
 
@@ -24,13 +24,13 @@ This is the 2025 equivalent of the old "200 city pages with ads" model — but i
 
 All formats share the same technical core: address input → map/satellite data → 3D scene → interaction → ads.
 
-| Format | What the user does | Example |
-|---|---|---|
-| **Configurator** | Designs something in a space | Design your deck on your yard |
-| **Visualizer** | Sees something overlaid on their location | See solar panels on your roof |
-| **Calculator** | Gets analysis of their location | How much sun does your garden get |
-| **Explorer** | Discovers data about their area | Construction projects near me |
-| **Game** | Plays with their real environment | Drop a marble on your street |
+| Format           | What the user does                        | Example                           |
+| ---------------- | ----------------------------------------- | --------------------------------- |
+| **Configurator** | Designs something in a space              | Design your deck on your yard     |
+| **Visualizer**   | Sees something overlaid on their location | See solar panels on your roof     |
+| **Calculator**   | Gets analysis of their location           | How much sun does your garden get |
+| **Explorer**     | Discovers data about their area           | Construction projects near me     |
+| **Game**         | Plays with their real environment         | Drop a marble on your street      |
 
 See [[taxonomy]] for the full breakdown.
 
@@ -57,7 +57,7 @@ See [[taxonomy]] for the full breakdown.
 
 - Next.js (App Router) + React 19
 - MapLibre + PMTiles + Protomaps basemaps
-- Photon geocoding (current vegetable garden planner integration)
+- Photon geocoding (current outdoor space planner integration)
 - AdSense (monetization)
 - Obsidian (this vault — backlog, docs, tracking)
 - NPM workspaces (monorepo management)

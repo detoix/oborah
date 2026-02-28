@@ -1,6 +1,6 @@
 ---
-slug: vegetable-garden-planner
-name: Vegetable Garden Planner
+slug: outdoor-space-planner
+name: Outdoor Space Planner
 format: configurator
 mode: design
 submode: ground-plane
@@ -15,7 +15,7 @@ assets_ready: false
 procedural_only: false
 hero_models: [greenhouse, compost-bin, rainwater-barrel]
 texture_sets: [treated-wood, soil, mulch, gravel]
-seo_keyword_en: "vegetable garden planner"
+seo_keyword_en: "outdoor space planner"
 seo_keyword_de: "gemüsegarten planer"
 seo_keyword_pl: "planer ogrodu warzywnego"
 seo_keyword_es: "planificador de huerto"

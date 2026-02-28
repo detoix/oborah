@@ -15,6 +15,7 @@ All apps in this portfolio fall into one of five formats. Each format uses the s
 ### Configurator ideas
 
 #### Outdoor / ground-plane (map-enabled, top-down)
+
 1. Design your deck / terrace
 2. Design your patio (pavers/stone)
 3. Design your fence
@@ -36,7 +37,7 @@ All apps in this portfolio fall into one of five formats. Each format uses the s
 19. Design your flower bed arrangement
 20. Design your gravel garden
 21. Design your zen garden
-22. Design your vegetable plot
+22. Design your outdoor space
 23. Design your orchard layout
 24. Design your pond placement
 25. Design your playground area
@@ -53,6 +54,7 @@ All apps in this portfolio fall into one of five formats. Each format uses the s
 36. Design your chicken coop area
 
 #### Wall / vertical (front-facing)
+
 37. Design your accent wall
 38. Design your gallery wall (frame arrangement)
 39. Design your kitchen backsplash
@@ -73,6 +75,7 @@ All apps in this portfolio fall into one of five formats. Each format uses the s
 54. Design your trellis / green wall
 
 #### Floor patterns (top-down, flat)
+
 55. Design your tile floor pattern
 56. Design your hardwood floor layout
 57. Design your vinyl floor pattern
@@ -81,6 +84,7 @@ All apps in this portfolio fall into one of five formats. Each format uses the s
 60. Design your paver pattern
 
 #### Full room (3D orbit)
+
 61. Design your home office
 62. Design your kids' room
 63. Design your nursery
@@ -102,6 +106,7 @@ All apps in this portfolio fall into one of five formats. Each format uses the s
 79. Design your meditation room
 
 #### Workspace
+
 80. Design your desk setup
 81. Design your standing desk setup
 82. Design your dual monitor setup
@@ -110,17 +115,20 @@ All apps in this portfolio fall into one of five formats. Each format uses the s
 85. Design your 3D printing station
 
 #### Storage
+
 86. Design your garage layout
 87. Design your closet organizer
 88. Design your under-stairs storage
 89. Design your attic storage
 
 #### Vehicle / mobile
+
 90. Design your camper van interior
 91. Design your RV layout
 92. Design your truck bed setup (overlanding)
 
 #### Events / commercial
+
 93. Design your food truck layout
 94. Design your market stall layout
 95. Design your beer garden
@@ -128,9 +136,10 @@ All apps in this portfolio fall into one of five formats. Each format uses the s
 97. Design your restaurant seating
 98. Design your office floor plan
 99. Design your classroom layout
-100. Design your conference room
+100.  Design your conference room
 
 #### Hobby / niche
+
 101. Design your aquarium layout
 102. Design your terrarium
 103. Design your hamster cage
@@ -153,6 +162,7 @@ All apps in this portfolio fall into one of five formats. Each format uses the s
 120. Design your Montessori room
 
 #### Seasonal
+
 121. Design your Christmas lights (house exterior)
 122. Design your Halloween yard
 123. Design your balcony Christmas decoration
@@ -299,6 +309,7 @@ All apps in this portfolio fall into one of five formats. Each format uses the s
 ## Tagging and cross-referencing
 
 Each idea should reference:
+
 - **Mode**: ground-plane, wall, room, map-only
 - **Map integration**: required, optional, none
 - **Asset complexity**: procedural-only, procedural+textures, needs-hero-models

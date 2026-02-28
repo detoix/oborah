@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Vegetable Garden Planner",
-  description: "Plan and arrange a vegetable garden layout on a real-world map",
+  title: "Outdoor Space Planner",
+  description: "Plan and arrange an outdoor space layout on a real-world map",
 };
 
 import "maplibre-gl/dist/maplibre-gl.css";
