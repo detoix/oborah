@@ -29,6 +29,7 @@ export type MapViewState = {
 export type MapApi = {
   getCenter: () => GeoCenter | null;
   screenToLngLat: (point: ClientPoint) => GeoPoint | null;
+  flyTo: (opts: { center: [number, number]; zoom?: number }) => void;
 };
 
 const INITIAL_VIEW_STATE = {
@@ -129,6 +130,9 @@ export default function Map({
         const y = clientY - rect.top;
         const lngLat = map.unproject([x, y]);
         return { lng: lngLat.lng, lat: lngLat.lat };
+      },
+      flyTo: (opts) => {
+        mapRef.current?.flyTo(opts);
       },
     }),
     [],
