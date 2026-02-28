@@ -10,6 +10,7 @@ import React, {
 import { Canvas } from "@react-three/fiber";
 import { DeviceOrientationControls } from "@react-three/drei";
 import type { DeviceOrientationControls as DeviceOrientationControlsImpl } from "three-stdlib";
+import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp } from "lucide-react";
 import type { GeoPoint } from "@oborah/geo";
 import { ARLayer, type ARBuilding } from "./ARLayer";
 import type { StabilizedLocation } from "@/hooks/use-stabilized-location";
@@ -36,6 +37,8 @@ function normalizeZeroTo360(deg: number): number {
 function normalizeSignedDegrees(deg: number): number {
   return ((deg + 540) % 360) - 180;
 }
+
+const AR_NUDGE_STEP_METERS = 0.35;
 
 export function ARViewport({
   buildings,
@@ -203,103 +206,30 @@ export function ARViewport({
     onInteractionEnd();
   }, [onInteractionEnd]);
 
-  // Global background pan (calibration)
-  const lastTouch = useRef<{ x: number; y: number } | null>(null);
-  const lastAngle = useRef<number | null>(null);
+  function nudgeCalibration(direction: "up" | "down" | "left" | "right") {
+    let dx = 0;
+    let dy = 0;
 
-  const getMetersPerPixel = useCallback(() => {
-    const viewportHeight = window.innerHeight;
-    return (2 * 1.5 * Math.tan((75 * Math.PI) / 180 / 2)) / viewportHeight;
-  }, []);
+    if (direction === "up") dy = -AR_NUDGE_STEP_METERS;
+    if (direction === "down") dy = AR_NUDGE_STEP_METERS;
+    if (direction === "left") dx = -AR_NUDGE_STEP_METERS;
+    if (direction === "right") dx = AR_NUDGE_STEP_METERS;
 
-  const angleBetweenTouches = (touches: React.TouchList): number => {
-    if (touches.length < 2) return 0;
-    const dx = touches[1].clientX - touches[0].clientX;
-    const dy = touches[1].clientY - touches[0].clientY;
-    return Math.atan2(dy, dx);
-  };
+    const headingDeg = compass.hasInitialized.current ? compass.heading : 0;
+    const headingRad = ((headingDeg % 360) * Math.PI) / 180;
 
-  const handleTouchStart = useCallback((e: React.TouchEvent) => {
-    // If we're interacting with a 3D model, ignore background pan touches
-    if (isDraggingBuildingRef.current) return;
+    const worldDx = dx * Math.cos(headingRad) - dy * Math.sin(headingRad);
+    const worldDz = dx * Math.sin(headingRad) + dy * Math.cos(headingRad);
 
-    if (e.touches.length === 1) {
-      lastTouch.current = {
-        x: e.touches[0].clientX,
-        y: e.touches[0].clientY,
-      };
-      lastAngle.current = null;
-    } else if (e.touches.length === 2) {
-      lastTouch.current = null;
-      lastAngle.current = angleBetweenTouches(e.touches);
-    }
-  }, []);
-
-  const handleTouchMove = useCallback(
-    (e: React.TouchEvent) => {
-      // If we're dragging a 3D model, disable global map pan
-      if (isDraggingBuildingRef.current) return;
-
-      if (e.touches.length === 1 && lastTouch.current) {
-        // One-finger drag: translate on X/Z
-        const mpp = getMetersPerPixel();
-        const dx = (e.touches[0].clientX - lastTouch.current.x) * mpp;
-        const dy = (e.touches[0].clientY - lastTouch.current.y) * mpp;
-
-        const headingDeg = compass.hasInitialized.current ? compass.heading : 0;
-        const headingRad = ((headingDeg % 360) * Math.PI) / 180;
-
-        const worldDx = dx * Math.cos(headingRad) - dy * Math.sin(headingRad);
-        const worldDz = dx * Math.sin(headingRad) + dy * Math.cos(headingRad);
-
-        setCalibrationOffset({
-          ...calibrationOffset,
-          x: calibrationOffset.x + worldDx,
-          z: calibrationOffset.z + worldDz,
-        });
-
-        lastTouch.current = {
-          x: e.touches[0].clientX,
-          y: e.touches[0].clientY,
-        };
-      } else if (e.touches.length === 2 && lastAngle.current !== null) {
-        // Two-finger twist: rotate on Y
-        const currentAngle = angleBetweenTouches(e.touches);
-        const delta = currentAngle - lastAngle.current;
-
-        setCalibrationOffset({
-          ...calibrationOffset,
-          rotationY: calibrationOffset.rotationY + delta,
-        });
-
-        lastAngle.current = currentAngle;
-      }
-    },
-    [calibrationOffset, setCalibrationOffset, getMetersPerPixel, compass],
-  );
-
-  const handleTouchEnd = useCallback((e: React.TouchEvent) => {
-    if (isDraggingBuildingRef.current) return;
-
-    if (e.touches.length === 0) {
-      lastTouch.current = null;
-      lastAngle.current = null;
-    } else if (e.touches.length === 1) {
-      lastTouch.current = {
-        x: e.touches[0].clientX,
-        y: e.touches[0].clientY,
-      };
-      lastAngle.current = null;
-    }
-  }, []);
+    setCalibrationOffset({
+      ...calibrationOffset,
+      x: calibrationOffset.x + worldDx,
+      z: calibrationOffset.z + worldDz,
+    });
+  }
 
   return (
-    <div
-      className="relative w-full h-full bg-black overflow-hidden"
-      onTouchStart={handleTouchStart}
-      onTouchMove={handleTouchMove}
-      onTouchEnd={handleTouchEnd}
-    >
+    <div className="relative w-full h-full overflow-hidden bg-black">
       {/* Background Camera Feed */}
       <video
         ref={videoRef}
@@ -375,6 +305,47 @@ export function ARViewport({
           </Canvas>
         </div>
       )}
+
+      {/* Street View-style directional pad */}
+      {activeOrigin &&
+        phase !== "gps_acquiring" &&
+        !combinedError &&
+        !needsPermission && (
+          <div className="pointer-events-none absolute inset-0 z-30">
+            <button
+              type="button"
+              onClick={() => nudgeCalibration("up")}
+              className="pointer-events-auto absolute left-1/2 top-2 grid h-10 w-10 -translate-x-1/2 place-items-center rounded-full bg-white/90 shadow-sm active:scale-95 transition-transform"
+              aria-label="Move up"
+            >
+              <ChevronUp className="h-5 w-5 text-slate-700" />
+            </button>
+            <button
+              type="button"
+              onClick={() => nudgeCalibration("left")}
+              className="pointer-events-auto absolute left-2 top-1/2 grid h-10 w-10 -translate-y-1/2 place-items-center rounded-full bg-white/90 shadow-sm active:scale-95 transition-transform"
+              aria-label="Move left"
+            >
+              <ChevronLeft className="h-5 w-5 text-slate-700" />
+            </button>
+            <button
+              type="button"
+              onClick={() => nudgeCalibration("right")}
+              className="pointer-events-auto absolute right-2 top-1/2 grid h-10 w-10 -translate-y-1/2 place-items-center rounded-full bg-white/90 shadow-sm active:scale-95 transition-transform"
+              aria-label="Move right"
+            >
+              <ChevronRight className="h-5 w-5 text-slate-700" />
+            </button>
+            <button
+              type="button"
+              onClick={() => nudgeCalibration("down")}
+              className="pointer-events-auto absolute bottom-2 left-1/2 grid h-10 w-10 -translate-x-1/2 place-items-center rounded-full bg-white/90 shadow-sm active:scale-95 transition-transform"
+              aria-label="Move down"
+            >
+              <ChevronDown className="h-5 w-5 text-slate-700" />
+            </button>
+          </div>
+        )}
     </div>
   );
 }

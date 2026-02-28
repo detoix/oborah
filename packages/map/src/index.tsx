@@ -30,6 +30,7 @@ export type MapApi = {
   getCenter: () => GeoCenter | null;
   screenToLngLat: (point: ClientPoint) => GeoPoint | null;
   flyTo: (opts: { center: [number, number]; zoom?: number }) => void;
+  resize: () => void;
 };
 
 const INITIAL_VIEW_STATE = {
@@ -67,6 +68,10 @@ export type MapProps = {
   interactiveLayerIds?: string[];
   onViewChange?: (view: MapViewState) => void;
   userLocation?: { lng: number; lat: number; accuracy: number } | null;
+  enableUserLocationAnchor?: boolean;
+  userLocationAnchor?: GeoPoint | null;
+  onUserLocationAnchorCreate?: (location: GeoPoint) => void;
+  onUserLocationAnchorChange?: (location: GeoPoint) => void;
 };
 
 export default function Map({
@@ -79,6 +84,10 @@ export default function Map({
   interactiveLayerIds,
   onViewChange,
   userLocation: userLocationProp,
+  enableUserLocationAnchor = false,
+  userLocationAnchor = null,
+  onUserLocationAnchorCreate,
+  onUserLocationAnchorChange,
 }: MapProps) {
   ensurePmtilesProtocol();
   const [mapInstance, setMapInstance] = useState<maplibregl.Map | null>(null);
@@ -133,6 +142,9 @@ export default function Map({
       },
       flyTo: (opts) => {
         mapRef.current?.flyTo(opts);
+      },
+      resize: () => {
+        mapRef.current?.resize();
       },
     }),
     [],
@@ -233,9 +245,64 @@ export default function Map({
             <Marker
               longitude={userLocation.lng}
               latitude={userLocation.lat}
-              color="#007cbf"
-            />
+              anchor="center"
+            >
+              <button
+                type="button"
+                aria-label={
+                  enableUserLocationAnchor
+                    ? "Create draggable AR position marker"
+                    : "Current GPS position"
+                }
+                onClick={(event) => {
+                  event.stopPropagation();
+                  if (!enableUserLocationAnchor) return;
+                  onUserLocationAnchorCreate?.({
+                    lng: userLocation.lng,
+                    lat: userLocation.lat,
+                  });
+                }}
+                style={{
+                  width: 14,
+                  height: 14,
+                  borderRadius: "9999px",
+                  border: "2px solid white",
+                  background: "#007cbf",
+                  boxShadow: "0 0 0 4px rgba(0,124,191,0.25)",
+                  cursor: enableUserLocationAnchor ? "pointer" : "default",
+                  pointerEvents: "auto",
+                }}
+              />
+            </Marker>
           </>
+        )}
+
+        {enableUserLocationAnchor && userLocationAnchor && (
+          <Marker
+            longitude={userLocationAnchor.lng}
+            latitude={userLocationAnchor.lat}
+            draggable={true}
+            anchor="center"
+            onDragEnd={(event) => {
+              onUserLocationAnchorChange?.({
+                lng: event.lngLat.lng,
+                lat: event.lngLat.lat,
+              });
+            }}
+          >
+            <div
+              aria-label="AR anchor marker"
+              style={{
+                width: 16,
+                height: 16,
+                borderRadius: "9999px",
+                border: "2px solid white",
+                background: "#f97316",
+                boxShadow: "0 0 0 5px rgba(249,115,22,0.25)",
+                pointerEvents: "auto",
+              }}
+            />
+          </Marker>
         )}
 
         <Source

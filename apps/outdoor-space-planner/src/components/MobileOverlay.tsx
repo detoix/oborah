@@ -8,7 +8,7 @@ import React, {
   useState,
 } from "react";
 import { CATALOG_ITEMS, CatalogItem } from "@oborah/catalog";
-import { ChevronLeft, ChevronUp, ChevronDown, RotateCw, X, Check, Camera, LocateFixed } from "lucide-react";
+import { ChevronLeft, RotateCw, X, Check, Camera, LocateFixed } from "lucide-react";
 import { SheetSnap, MobileMode, DraftPlacement } from "../hooks/use-planner-ui";
 
 interface MobileOverlayProps {
@@ -25,7 +25,6 @@ interface MobileOverlayProps {
   compassHeading: number | null;
   onToggleArMode: () => void;
   onLocateMe: () => void;
-  onNudgeAR?: (direction: "up" | "down" | "left" | "right") => void;
 }
 
 type SnapOffsets = Record<SheetSnap, number>;
@@ -102,7 +101,6 @@ export function MobileOverlay({
   compassHeading,
   onToggleArMode,
   onLocateMe,
-  onNudgeAR,
 }: MobileOverlayProps) {
   const [viewportHeight, setViewportHeight] = useState(0);
   const [dragOffset, setDragOffset] = useState<number | null>(null);
@@ -336,48 +334,6 @@ export function MobileOverlay({
           >
             <span className="h-1 w-10 rounded-full bg-black/15" />
           </button>
-
-          {/* AR mode — keyboard-style arrows to nudge scene */}
-          {isArMode && (
-            <div className="flex flex-col items-center gap-1 pb-2">
-              <div className="flex justify-center">
-                <button
-                  type="button"
-                  onClick={() => onNudgeAR?.("up")}
-                  className="grid h-9 w-9 place-items-center rounded-lg bg-white/80 shadow-sm active:scale-95 transition-transform"
-                  aria-label="Nudge up"
-                >
-                  <ChevronUp className="h-4 w-4 text-slate-700" />
-                </button>
-              </div>
-              <div className="flex gap-1">
-                <button
-                  type="button"
-                  onClick={() => onNudgeAR?.("left")}
-                  className="grid h-9 w-9 place-items-center rounded-lg bg-white/80 shadow-sm active:scale-95 transition-transform"
-                  aria-label="Nudge left"
-                >
-                  <ChevronLeft className="h-4 w-4 text-slate-700" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => onNudgeAR?.("down")}
-                  className="grid h-9 w-9 place-items-center rounded-lg bg-white/80 shadow-sm active:scale-95 transition-transform"
-                  aria-label="Nudge down"
-                >
-                  <ChevronDown className="h-4 w-4 text-slate-700" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => onNudgeAR?.("right")}
-                  className="grid h-9 w-9 place-items-center rounded-lg bg-white/80 shadow-sm active:scale-95 transition-transform rotate-180"
-                  aria-label="Nudge right"
-                >
-                  <ChevronLeft className="h-4 w-4 text-slate-700" />
-                </button>
-              </div>
-            </div>
-          )}
 
           {/* Browse mode */}
           {!isArMode && mobileMode === "browse" && (

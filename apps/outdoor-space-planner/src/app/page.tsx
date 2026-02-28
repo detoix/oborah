@@ -18,7 +18,10 @@ import { usePlannerStore } from "@/stores/use-planner-store";
 import { useARSessionStore } from "@/stores/use-ar-session-store";
 import { usePlannerUI } from "@/hooks/use-planner-ui";
 import { useMapDrop } from "@/hooks/use-map-drop";
-import { useStabilizedLocation } from "@/hooks/use-stabilized-location";
+import {
+  useStabilizedLocation,
+  type StabilizedLocation,
+} from "@/hooks/use-stabilized-location";
 import { useCompass } from "@/hooks/use-sensor-fusion";
 import { useUrlState } from "@/hooks/use-url-state";
 
@@ -26,6 +29,8 @@ const MAP_ORIGIN: GeoCenter = {
   lng: 19.945,
   lat: 50.0647,
 };
+const AR_SPLIT_MIN_RATIO = 0.25;
+const AR_SPLIT_MAX_RATIO = 0.75;
 
 export default function Home() {
   const mapApiRef = useRef<MapApi | null>(null);
@@ -35,8 +40,19 @@ export default function Home() {
     null,
   );
   const [isArMode, setIsArMode] = useState<boolean>(false);
+  const [arSplitRatio, setArSplitRatio] = useState<number>(0.5);
+  const [isArSplitDragging, setIsArSplitDragging] = useState<boolean>(false);
+  const arSplitDragRef = useRef<{ pointerId: number; active: boolean }>({
+    pointerId: -1,
+    active: false,
+  });
   const [mapOrigin, setMapOrigin] = useState<GeoCenter>(MAP_ORIGIN);
   const [arCompassHeading, setArCompassHeading] = useState<number | null>(null);
+  const [arAnchorLocation, setArAnchorLocation] = useState<GeoPoint | null>(
+    null,
+  );
+  const [hasArEverBeenEnabled, setHasArEverBeenEnabled] =
+    useState<boolean>(false);
   const stabilized = useStabilizedLocation();
   const { phase, setPhase } = useARSessionStore();
 
@@ -61,6 +77,17 @@ export default function Home() {
           }
         : null,
     [stabilized.position, stabilized.accuracy],
+  );
+
+  const arEffectiveLocation = useMemo<StabilizedLocation>(
+    () =>
+      isArMode && arAnchorLocation
+        ? {
+            ...stabilized,
+            position: arAnchorLocation,
+          }
+        : stabilized,
+    [isArMode, arAnchorLocation, stabilized],
   );
 
   const {
@@ -200,6 +227,109 @@ export default function Home() {
     [draftPlacement, selectBuilding],
   );
 
+  const clampArSplitRatio = useCallback((ratio: number) => {
+    return Math.min(
+      AR_SPLIT_MAX_RATIO,
+      Math.max(AR_SPLIT_MIN_RATIO, ratio),
+    );
+  }, []);
+
+  const updateArSplitFromClientY = useCallback(
+    (clientY: number) => {
+      if (typeof window === "undefined") return;
+      const viewportHeight = Math.max(window.innerHeight, 1);
+      setArSplitRatio(clampArSplitRatio(clientY / viewportHeight));
+    },
+    [clampArSplitRatio],
+  );
+
+  const handleArSplitDragStart = useCallback(
+    (event: React.PointerEvent<HTMLButtonElement>) => {
+      if (event.button !== 0) return;
+      arSplitDragRef.current = {
+        pointerId: event.pointerId,
+        active: true,
+      };
+      setIsArSplitDragging(true);
+      event.currentTarget.setPointerCapture(event.pointerId);
+      updateArSplitFromClientY(event.clientY);
+    },
+    [updateArSplitFromClientY],
+  );
+
+  const handleArSplitDragMove = useCallback(
+    (event: React.PointerEvent<HTMLButtonElement>) => {
+      if (
+        !arSplitDragRef.current.active ||
+        arSplitDragRef.current.pointerId !== event.pointerId
+      ) {
+        return;
+      }
+      updateArSplitFromClientY(event.clientY);
+    },
+    [updateArSplitFromClientY],
+  );
+
+  const handleArSplitDragEnd = useCallback(
+    (event: React.PointerEvent<HTMLButtonElement>) => {
+      if (arSplitDragRef.current.pointerId !== event.pointerId) return;
+      arSplitDragRef.current.active = false;
+      setIsArSplitDragging(false);
+      if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+        event.currentTarget.releasePointerCapture(event.pointerId);
+      }
+      window.requestAnimationFrame(() => {
+        mapApiRef.current?.resize?.();
+      });
+    },
+    [],
+  );
+
+  useEffect(() => {
+    if (isDesktopViewport || !mapApiRef.current?.resize) return;
+    const raf = window.requestAnimationFrame(() => {
+      mapApiRef.current?.resize();
+    });
+    return () => {
+      window.cancelAnimationFrame(raf);
+    };
+  }, [isDesktopViewport, isArMode]);
+
+  const arSplitPercent = `${(arSplitRatio * 100).toFixed(2)}%`;
+  const mobileMapTop = isArMode ? arSplitPercent : "0%";
+
+  const mobileMapViewport = (
+    <MapViewport
+      buildings={allVisibleBuildings}
+      selectedId={activeSelectedId}
+      origin={mapOrigin}
+      showGeocoder={!isArMode}
+      enableUserLocationAnchor={isArMode}
+      userLocationAnchor={isArMode ? arAnchorLocation : null}
+      onUserLocationAnchorCreate={setArAnchorLocation}
+      onUserLocationAnchorChange={setArAnchorLocation}
+      isInteractingWithModel={isInteractingWithModel}
+      onViewChange={handleMapViewChange}
+      onMapReady={(api) => {
+        mapApiRef.current = api;
+      }}
+      onCanvasPointerMissed={() => handleSelectBuilding(null)}
+      onMapClick={handleMapClickForPlacement}
+      onMoveBuilding={handleMoveBuilding}
+      onRotateBuilding={handleRotateBuilding}
+      onSelectBuilding={handleSelectBuilding}
+      onInteractionStart={() => {
+        suppressNextPlacementTap();
+        setInteractingWithModel(true);
+      }}
+      onInteractionEnd={() => {
+        suppressNextPlacementTap();
+        setInteractingWithModel(false);
+      }}
+      userLocation={stabilizedUserLocation}
+    />
+  );
+
   if (isDesktopViewport === null) {
     return (
       <main className="w-screen h-[100svh] overflow-hidden bg-white md:h-screen" />
@@ -247,38 +377,32 @@ export default function Home() {
         </div>
       ) : (
         <div className="relative w-full h-full">
-          <MapViewport
-            buildings={allVisibleBuildings}
-            selectedId={activeSelectedId}
-            origin={mapOrigin}
-            isInteractingWithModel={isInteractingWithModel}
-            onViewChange={handleMapViewChange}
-            onMapReady={(api) => {
-              mapApiRef.current = api;
-            }}
-            onCanvasPointerMissed={() => handleSelectBuilding(null)}
-            onMapClick={handleMapClickForPlacement}
-            onMoveBuilding={handleMoveBuilding}
-            onRotateBuilding={handleRotateBuilding}
-            onSelectBuilding={handleSelectBuilding}
-            onInteractionStart={() => {
-              suppressNextPlacementTap();
-              setInteractingWithModel(true);
-            }}
-            onInteractionEnd={() => {
-              suppressNextPlacementTap();
-              setInteractingWithModel(false);
-            }}
-            userLocation={stabilizedUserLocation}
-          />
+          <div
+            className={`absolute inset-x-0 bottom-0 min-h-0 ${
+              isArSplitDragging ? "" : "transition-[top] duration-300 ease-out"
+            }`}
+            style={{ top: mobileMapTop }}
+          >
+            {mobileMapViewport}
+          </div>
 
-          {/* AR Viewport Toggle Support */}
-          {isArMode && (
-            <div className="absolute inset-0 z-10 bg-black">
+          {(isArMode || hasArEverBeenEnabled) && (
+            <div
+              className={`absolute inset-x-0 top-0 z-10 min-h-0 overflow-hidden bg-black ${
+                isArSplitDragging
+                  ? ""
+                  : "transition-[height,opacity] duration-300 ease-out"
+              }`}
+              style={{
+                height: isArMode ? arSplitPercent : "0%",
+                opacity: isArMode ? 1 : 0,
+                pointerEvents: isArMode ? "auto" : "none",
+              }}
+            >
               <ARViewport
                 buildings={allVisibleBuildings}
                 selectedId={activeSelectedId}
-                location={stabilized}
+                location={arEffectiveLocation}
                 compass={compass}
                 onHeadingChange={setArCompassHeading}
                 onSelectBuilding={handleSelectBuilding}
@@ -288,6 +412,28 @@ export default function Home() {
                 onInteractionEnd={() => setInteractingWithModel(false)}
               />
             </div>
+          )}
+
+          {isArMode && (
+            <button
+              type="button"
+              className="absolute inset-x-0 z-[15] flex h-7 touch-none cursor-row-resize items-center justify-center"
+              style={{
+                top: arSplitPercent,
+                transform: "translateY(-50%)",
+              }}
+              onPointerDown={handleArSplitDragStart}
+              onPointerMove={handleArSplitDragMove}
+              onPointerUp={handleArSplitDragEnd}
+              onPointerCancel={handleArSplitDragEnd}
+              aria-label="Resize AR split view"
+            >
+              <span
+                className={`h-1.5 w-12 rounded-full shadow ${
+                  isArSplitDragging ? "bg-emerald-600" : "bg-white/95"
+                }`}
+              />
+            </button>
           )}
 
           <MobileOverlay
@@ -312,7 +458,20 @@ export default function Home() {
             }}
             onToggleArMode={() => {
               const next = !isArMode;
+              if (!next) {
+                arSplitDragRef.current.active = false;
+                setIsArSplitDragging(false);
+              }
               setIsArMode(next);
+              if (next) {
+                setHasArEverBeenEnabled(true);
+              }
+              window.requestAnimationFrame(() => {
+                mapApiRef.current?.resize?.();
+              });
+              window.setTimeout(() => {
+                mapApiRef.current?.resize?.();
+              }, 320);
               if (!next) {
                 setArCompassHeading(null);
               } else {

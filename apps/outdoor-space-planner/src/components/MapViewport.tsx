@@ -8,6 +8,11 @@ interface MapViewportProps {
   buildings: DesignBuilding[];
   selectedId: string | null;
   origin: GeoCenter;
+  showGeocoder?: boolean;
+  enableUserLocationAnchor?: boolean;
+  userLocationAnchor?: GeoPoint | null;
+  onUserLocationAnchorCreate?: (location: GeoPoint) => void;
+  onUserLocationAnchorChange?: (location: GeoPoint) => void;
   isInteractingWithModel: boolean;
   onMapReady: (api: MapApi) => void;
   onViewChange?: (view: MapViewState) => void;
@@ -25,6 +30,11 @@ export function MapViewport({
   buildings,
   selectedId,
   origin,
+  showGeocoder = true,
+  enableUserLocationAnchor = false,
+  userLocationAnchor = null,
+  onUserLocationAnchorCreate,
+  onUserLocationAnchorChange,
   isInteractingWithModel,
   onMapReady,
   onViewChange,
@@ -45,13 +55,21 @@ export function MapViewport({
       onCanvasPointerMissed={onCanvasPointerMissed}
       onMapClick={onMapClick}
       userLocation={userLocation}
-      geocoder={{
-        provider: "photon",
-        position: "top-left",
-        placeholder: "Search with Photon",
-        language: "en",
-        limit: 8,
-      }}
+      enableUserLocationAnchor={enableUserLocationAnchor}
+      userLocationAnchor={userLocationAnchor}
+      onUserLocationAnchorCreate={onUserLocationAnchorCreate}
+      onUserLocationAnchorChange={onUserLocationAnchorChange}
+      geocoder={
+        showGeocoder
+          ? {
+              provider: "photon",
+              position: "top-left",
+              placeholder: "Search with Photon",
+              language: "en",
+              limit: 8,
+            }
+          : null
+      }
     >
       <DesignLayer
         buildings={buildings}
