@@ -23,49 +23,51 @@ export type CatalogItemKind = CatalogItem["type"];
 
 export const CATALOG_ITEMS: CatalogItem[] = [
   {
-    id: "raised-bed",
-    name: "Raised Bed",
-    type: "procedural",
-    icon: <Box className="w-4 h-4" />,
-    visualConfig: {
-      args: [6, 1.5, 3],
-      color: "#795548", // Wood Brown
-      soilColor: "#3E2723", // Dark Soil
-    },
-  },
-  {
-    id: "greenhouse",
-    name: "Greenhouse",
+    id: "merry-go-round",
+    name: "Merry Go Round",
     type: "glb",
     icon: <Triangle className="w-4 h-4" />,
     visualConfig: {
-      args: [8, 10, 12],
-      color: "#B2DFDB", // Glassy Teal
-      opacity: 0.6,
-      transparent: true,
+      args: [4, 2, 4],
+      color: "#FF5722",
+      modelUrl:
+        "https://pub-e9b147ce12714178ac88c0aefdf3b47f.r2.dev/3d_models/merry_go_round.glb",
     },
   },
   {
-    id: "planter-box",
-    name: "Planter Box",
-    type: "procedural",
-    icon: <Cuboid className="w-4 h-4" />,
-    visualConfig: {
-      args: [2, 2, 2],
-      color: "#8D6E63",
-      soilColor: "#3E2723",
-    },
-  },
-  {
-    id: "compost-bin",
-    name: "Compost Bin",
+    id: "sandbox",
+    name: "Sandbox",
     type: "glb",
     icon: <Box className="w-4 h-4" />,
     visualConfig: {
-      args: [3, 4, 3],
-      color: "#424242", // Dark Grey
+      args: [4, 1, 4],
+      color: "#FFC107",
       modelUrl:
-        "https://pub-e9b147ce12714178ac88c0aefdf3b47f.r2.dev/3d_models/Untitled.glb",
+        "https://pub-e9b147ce12714178ac88c0aefdf3b47f.r2.dev/3d_models/sandbox.glb",
+    },
+  },
+  {
+    id: "slide",
+    name: "Slide",
+    type: "glb",
+    icon: <Triangle className="w-4 h-4 rotate-180" />,
+    visualConfig: {
+      args: [2, 3, 4],
+      color: "#03A9F4",
+      modelUrl:
+        "https://pub-e9b147ce12714178ac88c0aefdf3b47f.r2.dev/3d_models/slide.glb",
+    },
+  },
+  {
+    id: "swing",
+    name: "Swing",
+    type: "glb",
+    icon: <Cuboid className="w-4 h-4" />,
+    visualConfig: {
+      args: [4, 4, 3],
+      color: "#4CAF50",
+      modelUrl:
+        "https://pub-e9b147ce12714178ac88c0aefdf3b47f.r2.dev/3d_models/swing.glb",
     },
   },
 ];
