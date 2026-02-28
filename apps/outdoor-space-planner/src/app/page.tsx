@@ -35,7 +35,6 @@ export default function Home() {
     null,
   );
   const [isArMode, setIsArMode] = useState<boolean>(false);
-  const resetARSession = useARSessionStore((s) => s.resetSession);
   const [mapOrigin, setMapOrigin] = useState<GeoCenter>(MAP_ORIGIN);
   const [arCompassHeading, setArCompassHeading] = useState<number | null>(null);
   const stabilized = useStabilizedLocation();
@@ -62,7 +61,7 @@ export default function Home() {
     if (stabilized.isStationary && stabilized.position && !stabilizedOrigin) {
       setStabilizedOrigin(stabilized.position);
       if (phase === "gps_acquiring") {
-        setPhase("calibrating");
+        setPhase("tracking");
       }
     }
   }, [
@@ -337,7 +336,6 @@ export default function Home() {
               const next = !isArMode;
               setIsArMode(next);
               if (!next) {
-                resetARSession();
                 setArCompassHeading(null);
               } else {
                 setSheetSnap("collapsed");

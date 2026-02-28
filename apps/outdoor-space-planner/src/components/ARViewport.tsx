@@ -12,8 +12,6 @@ import { DeviceOrientationControls } from "@react-three/drei";
 import type { DeviceOrientationControls as DeviceOrientationControlsImpl } from "three-stdlib";
 import type { GeoPoint } from "@oborah/geo";
 import { ARLayer, type ARBuilding } from "./ARLayer";
-import { CalibrationOverlay } from "./CalibrationOverlay";
-import { DriftConfidenceBar } from "./DriftConfidenceBar";
 import type { StabilizedLocation } from "@/hooks/use-stabilized-location";
 import type { SensorFusionResult } from "@/hooks/use-sensor-fusion";
 import { useARSessionStore } from "@/stores/use-ar-session-store";
@@ -58,17 +56,13 @@ export function ARViewport({
   const [error, setError] = useState<string | null>(null);
   const [needsPermission, setNeedsPermission] = useState(false);
 
-  // AR session state machine
   const {
     phase,
     stabilizedOrigin,
     calibrationOffset,
-    driftConfidence,
     setStabilizedOrigin,
     setCalibrationOffset,
-    setDriftConfidence,
     confirmCalibration,
-    requestRecalibration,
     setPhase,
   } = useARSessionStore();
 
@@ -137,13 +131,6 @@ export function ARViewport({
 
   // Derived error
   const combinedError = error || location.error;
-
-  // Sync drift confidence from sensor fusion
-  useEffect(() => {
-    if (phase === "tracking" || phase === "recalibrating") {
-      setDriftConfidence(sensorFusion.confidence);
-    }
-  }, [sensorFusion.confidence, phase, setDriftConfidence]);
 
   // Recalibration: when stationary again after drift exceeded, re-lock
   useEffect(() => {
@@ -251,8 +238,117 @@ export function ARViewport({
     return buildings;
   }, [buildings]);
 
+  const isDraggingBuildingRef = useRef(false);
+
+  const handleInteractionStartWrapper = useCallback(() => {
+    isDraggingBuildingRef.current = true;
+    onInteractionStart();
+  }, [onInteractionStart]);
+
+  const handleInteractionEndWrapper = useCallback(() => {
+    isDraggingBuildingRef.current = false;
+    onInteractionEnd();
+  }, [onInteractionEnd]);
+
+  // Global background pan (calibration)
+  const lastTouch = useRef<{ x: number; y: number } | null>(null);
+  const lastAngle = useRef<number | null>(null);
+
+  const getMetersPerPixel = useCallback(() => {
+    const viewportHeight = window.innerHeight;
+    return (2 * 1.5 * Math.tan((75 * Math.PI) / 180 / 2)) / viewportHeight;
+  }, []);
+
+  const angleBetweenTouches = (touches: React.TouchList): number => {
+    if (touches.length < 2) return 0;
+    const dx = touches[1].clientX - touches[0].clientX;
+    const dy = touches[1].clientY - touches[0].clientY;
+    return Math.atan2(dy, dx);
+  };
+
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    // If we're interacting with a 3D model, ignore background pan touches
+    if (isDraggingBuildingRef.current) return;
+
+    if (e.touches.length === 1) {
+      lastTouch.current = {
+        x: e.touches[0].clientX,
+        y: e.touches[0].clientY,
+      };
+      lastAngle.current = null;
+    } else if (e.touches.length === 2) {
+      lastTouch.current = null;
+      lastAngle.current = angleBetweenTouches(e.touches);
+    }
+  }, []);
+
+  const handleTouchMove = useCallback(
+    (e: React.TouchEvent) => {
+      // If we're dragging a 3D model, disable global map pan
+      if (isDraggingBuildingRef.current) return;
+
+      if (e.touches.length === 1 && lastTouch.current) {
+        // One-finger drag: translate on X/Z
+        const mpp = getMetersPerPixel();
+        const dx = (e.touches[0].clientX - lastTouch.current.x) * mpp;
+        const dy = (e.touches[0].clientY - lastTouch.current.y) * mpp;
+
+        const headingDeg = sensorFusion.hasInitialized.current
+          ? sensorFusion.heading
+          : 0;
+        const headingRad = ((headingDeg % 360) * Math.PI) / 180;
+
+        const worldDx = dx * Math.cos(headingRad) - dy * Math.sin(headingRad);
+        const worldDz = dx * Math.sin(headingRad) + dy * Math.cos(headingRad);
+
+        setCalibrationOffset({
+          ...calibrationOffset,
+          x: calibrationOffset.x + worldDx,
+          z: calibrationOffset.z + worldDz,
+        });
+
+        lastTouch.current = {
+          x: e.touches[0].clientX,
+          y: e.touches[0].clientY,
+        };
+      } else if (e.touches.length === 2 && lastAngle.current !== null) {
+        // Two-finger twist: rotate on Y
+        const currentAngle = angleBetweenTouches(e.touches);
+        const delta = currentAngle - lastAngle.current;
+
+        setCalibrationOffset({
+          ...calibrationOffset,
+          rotationY: calibrationOffset.rotationY + delta,
+        });
+
+        lastAngle.current = currentAngle;
+      }
+    },
+    [calibrationOffset, setCalibrationOffset, getMetersPerPixel, sensorFusion],
+  );
+
+  const handleTouchEnd = useCallback((e: React.TouchEvent) => {
+    if (isDraggingBuildingRef.current) return;
+
+    if (e.touches.length === 0) {
+      lastTouch.current = null;
+      lastAngle.current = null;
+    } else if (e.touches.length === 1) {
+      lastTouch.current = {
+        x: e.touches[0].clientX,
+        y: e.touches[0].clientY,
+      };
+      lastAngle.current = null;
+    }
+  }, []);
+
   return (
-    <div className="relative w-full h-full bg-black overflow-hidden">
+    <div
+      className="relative w-full h-full bg-black overflow-hidden"
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+    >
       {/* Background Camera Feed */}
       <video
         ref={videoRef}
@@ -304,36 +400,6 @@ export function ARViewport({
         </div>
       )}
 
-      {/* Calibration Overlay (Phase 2) */}
-      {phase === "calibrating" && (
-        <CalibrationOverlay
-          offset={calibrationOffset}
-          headingDeg={
-            sensorFusion.hasInitialized.current ? sensorFusion.heading : 0
-          }
-          onChange={setCalibrationOffset}
-          onConfirm={confirmCalibration}
-          onCancel={() => setPhase("gps_acquiring")}
-        />
-      )}
-
-      {/* Drift Confidence Bar (Phase 3: tracking) */}
-      {(phase === "tracking" || phase === "recalibrating") && (
-        <DriftConfidenceBar
-          confidence={driftConfidence}
-          onRecalibrate={requestRecalibration}
-        />
-      )}
-
-      {/* Recalibrating banner */}
-      {phase === "recalibrating" && (
-        <div className="absolute top-16 left-4 right-4 z-30 flex justify-center">
-          <div className="bg-yellow-600/80 backdrop-blur-md px-4 py-2 rounded-full text-white text-sm animate-pulse">
-            Processing new GPS reading...
-          </div>
-        </div>
-      )}
-
       {/* 3D Canvas — visible once we have an origin (stabilized or calibrating+) */}
       {activeOrigin && phase !== "gps_acquiring" && (
         <div className="absolute inset-0 z-10">
@@ -357,8 +423,8 @@ export function ARViewport({
               onSelectBuilding={onSelectBuilding}
               onMoveBuilding={onMoveBuilding}
               onRotateBuilding={onRotateBuilding}
-              onInteractionStart={onInteractionStart}
-              onInteractionEnd={onInteractionEnd}
+              onInteractionStart={handleInteractionStartWrapper}
+              onInteractionEnd={handleInteractionEndWrapper}
             />
           </Canvas>
         </div>
