@@ -27,6 +27,7 @@ interface SensorFusionOptions {
 }
 
 // ----------------------------------------------------
+// ----------------------------------------------------
 // EXTENDED KALMAN FILTER (EKF) TUNING CONSTANTS
 // Tweak these if the AR models slide too much or jitter
 // ----------------------------------------------------
@@ -36,12 +37,6 @@ const ACCEL_NOISE_VARIANCE = 0.8;
 /** Measurement Noise ($R$) Multiplier: How much we trust the GPS `accuracy` param.
  * Higher = we distrust the GPS and heavily smooth it. */
 const GPS_NOISE_MULTIPLIER = 1.5;
-
-// Zero Velocity Update (ZUPT) Constants
-/** If accelerometer magnitude is within this range of 9.81m/s^2, we assume the user is physically standing still */
-const ZUPT_ACCEL_THRESHOLD = 1.2;
-/** How long the user must be "still" before we zero-out the velocity vector */
-const ZUPT_TIME_MS = 250;
 
 // Drift Confidence
 const DIVERGENCE_MAX = 15; // meters at which confidence = 0
@@ -101,44 +96,9 @@ class EKF2D {
     this.p_vz *= 0.1;
   }
 
-  /**
-   * Update Phase (Runs 1Hz from GPS)
-   * @param measX Local Cartesian GPS X offset
-   * @param measZ Local Cartesian GPS Z offset
-   * @param measAccuracy GPS Reported Accuracy in meters
-   * @param isStandingStill Whether ZUPT is currently active (Deep Lock mode)
-   */
-  updateGPS(
-    measX: number,
-    measZ: number,
-    measAccuracy: number,
-    isStandingStill: boolean,
-  ) {
-    if (isStandingStill) {
-      // Outlier rejection during Deep Lock:
-      // If the new GPS point is >10m away from our current locked position, ignore it.
-      // It is impossible to teleport 10m while standing still.
-      const distFromCurrent = Math.sqrt(
-        (measX - this.x) ** 2 + (measZ - this.z) ** 2,
-      );
-      if (distFromCurrent > 10) {
-        console.log(
-          `[EKF Deep Lock] Rejected outlier GPS bounce: ${distFromCurrent.toFixed(1)}m away`,
-        );
-        return;
-      }
-
-      // Iron Grip: Since we are physically not moving, our position uncertainty drops drastically.
-      this.p_x *= 0.5;
-      this.p_z *= 0.5;
-    }
-
+  updateGPS(measX: number, measZ: number, measAccuracy: number) {
     // Measurement noise based on GPS API
-    // If standing still, we inflate the measurement noise by 15x (Deep Lock).
-    // This forces the filter to move very, very slowly toward the noisy GPS, mathematically finding the true average center.
-    const deepLockMultiplier = isStandingStill ? 15.0 : 1.0;
-    const r =
-      measAccuracy * measAccuracy * GPS_NOISE_MULTIPLIER * deepLockMultiplier;
+    const r = measAccuracy * measAccuracy * GPS_NOISE_MULTIPLIER;
 
     // Kalman Gains
     const k_x = this.p_x / (this.p_x + r);
@@ -179,7 +139,6 @@ export function useSensorFusion({
 
   // Time tracking
   const lastAccelTime = useRef<number>(0);
-  const consecutiveQuietFrames = useRef<number>(0);
 
   // Compass low-pass filter (sin/cos to handle wraparound)
   const headingRef = useRef(0);
@@ -268,24 +227,6 @@ export function useSensorFusion({
       const dt = (now - lastAccelTime.current) / 1000;
       lastAccelTime.current = now;
 
-      // ZUPT Detection (Zero Velocity Update)
-      // If the magnitude of the gravity vector is near 9.8 AND linear acceleration is tiny
-      const gravMag = Math.sqrt(
-        gravity.x ** 2 + gravity.y ** 2 + gravity.z! ** 2,
-      );
-      const linMag = Math.sqrt(accel.x ** 2 + accel.y ** 2 + accel.z ** 2);
-
-      if (
-        Math.abs(gravMag - 9.81) < ZUPT_ACCEL_THRESHOLD &&
-        linMag < ZUPT_ACCEL_THRESHOLD
-      ) {
-        consecutiveQuietFrames.current += dt * 1000;
-      } else {
-        consecutiveQuietFrames.current = 0;
-      }
-
-      const isStandingStill = consecutiveQuietFrames.current > ZUPT_TIME_MS;
-
       // Rotate local phone acceleration into World North/East offsets
       // Simplification: We assume the phone is held relatively flat or upright, primarily rotating around Y (heading)
       const headRad = (headingRef.current * Math.PI) / 180;
@@ -300,10 +241,6 @@ export function useSensorFusion({
 
       const ekf = ekfRef.current;
       ekf.predict(worldAccelX, worldAccelZ, dt);
-
-      if (isStandingStill) {
-        ekf.applyZUPT();
-      }
     },
     [enabled],
   );
@@ -323,13 +260,7 @@ export function useSensorFusion({
       };
 
       const ekf = ekfRef.current;
-      const isStandingStill = consecutiveQuietFrames.current > ZUPT_TIME_MS;
-      ekf.updateGPS(
-        gpsCalibrated.x,
-        gpsCalibrated.z,
-        accuracy,
-        isStandingStill,
-      );
+      ekf.updateGPS(gpsCalibrated.x, gpsCalibrated.z, accuracy);
 
       // Drift computation (if IMU drifts > 15m from the GPS)
       const divergence = Math.sqrt(
