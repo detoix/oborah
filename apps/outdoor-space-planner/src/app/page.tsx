@@ -36,7 +36,7 @@ export default function Home() {
   const [isArMode, setIsArMode] = useState<boolean>(false);
   const resetARSession = useARSessionStore((s) => s.resetSession);
   const [mapOrigin, setMapOrigin] = useState<GeoCenter>(MAP_ORIGIN);
-  const [mapBearing, setMapBearing] = useState(0);
+  const [arCompassHeading, setArCompassHeading] = useState<number | null>(null);
   const stabilized = useStabilizedLocation();
   const stabilizedUserLocation = useMemo(
     () =>
@@ -155,7 +155,6 @@ export default function Home() {
         ? prev
         : view.center,
     );
-    setMapBearing(view.bearing);
   }, []);
 
   const handleMoveBuilding = useCallback(
@@ -267,6 +266,7 @@ export default function Home() {
                 buildings={allVisibleBuildings}
                 selectedId={activeSelectedId}
                 location={stabilized}
+                onHeadingChange={setArCompassHeading}
                 onSelectBuilding={handleSelectBuilding}
                 onMoveBuilding={handleMoveBuilding}
                 onRotateBuilding={handleRotateBuilding}
@@ -287,7 +287,7 @@ export default function Home() {
             acceptDraft={acceptDraft}
             rotateDraft={rotateDraft}
             isArMode={isArMode}
-            mapBearing={mapBearing}
+            compassHeading={arCompassHeading}
             onLocateMe={() => {
               navigator.geolocation.getCurrentPosition(
                 (pos) => {
@@ -303,6 +303,7 @@ export default function Home() {
               setIsArMode(next);
               if (!next) {
                 resetARSession();
+                setArCompassHeading(null);
               } else {
                 setSheetSnap("collapsed");
               }

@@ -5,6 +5,7 @@ import type { CalibrationOffset } from "@/stores/use-ar-session-store";
 
 interface CalibrationOverlayProps {
   offset: CalibrationOffset;
+  headingDeg: number;
   onChange: (offset: CalibrationOffset) => void;
   onConfirm: () => void;
   onCancel: () => void;
@@ -17,6 +18,7 @@ interface CalibrationOverlayProps {
  */
 export function CalibrationOverlay({
   offset,
+  headingDeg,
   onChange,
   onConfirm,
   onCancel,
@@ -64,11 +66,18 @@ export function CalibrationOverlay({
         const mpp = getMetersPerPixel();
         const dx = (e.touches[0].clientX - lastTouch.current.x) * mpp;
         const dy = (e.touches[0].clientY - lastTouch.current.y) * mpp;
+        const headingRad = ((headingDeg % 360) * Math.PI) / 180;
+
+        // Convert screen-local drag to world X/Z using live heading.
+        // right vector = [cos(h), sin(h)]
+        // forward vector = [sin(h), -cos(h)], and screen Y+ means backward.
+        const worldDx = dx * Math.cos(headingRad) - dy * Math.sin(headingRad);
+        const worldDz = dx * Math.sin(headingRad) + dy * Math.cos(headingRad);
 
         onChange({
           ...offset,
-          x: offset.x + dx,
-          z: offset.z + dy,
+          x: offset.x + worldDx,
+          z: offset.z + worldDz,
         });
 
         lastTouch.current = {
@@ -88,7 +97,7 @@ export function CalibrationOverlay({
         lastAngle.current = currentAngle;
       }
     },
-    [offset, onChange, getMetersPerPixel],
+    [offset, onChange, getMetersPerPixel, headingDeg],
   );
 
   const handleTouchEnd = useCallback((e: React.TouchEvent) => {

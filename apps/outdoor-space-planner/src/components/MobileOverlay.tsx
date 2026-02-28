@@ -22,7 +22,7 @@ interface MobileOverlayProps {
   acceptDraft: () => void;
   rotateDraft: () => void;
   isArMode: boolean;
-  mapBearing: number;
+  compassHeading: number | null;
   onToggleArMode: () => void;
   onLocateMe: () => void;
   onNudgeAR?: (direction: "up" | "down" | "left" | "right") => void;
@@ -99,7 +99,7 @@ export function MobileOverlay({
   acceptDraft,
   rotateDraft,
   isArMode,
-  mapBearing,
+  compassHeading,
   onToggleArMode,
   onLocateMe,
   onNudgeAR,
@@ -239,9 +239,15 @@ export function MobileOverlay({
     <div className="pointer-events-none fixed inset-0 z-20">
       {/* North needle (AR only) — centered when facing north, slides sideways otherwise */}
       {isArMode && (() => {
-        // Normalize bearing to -180..180 so the needle slides left/right
-        let offset = ((mapBearing % 360) + 360) % 360;
+        if (compassHeading === null) return null;
+
+        const heading = ((compassHeading % 360) + 360) % 360;
+        const roundedHeading = Math.round(heading) % 360;
+        // Normalize heading to -180..180 so the needle slides left/right
+        let offset = roundedHeading;
         if (offset > 180) offset -= 360;
+        if (roundedHeading === 0) offset = 0;
+
         // Map degrees to viewport percentage (clamp so it doesn't fly off screen)
         // At ±90° the needle reaches the edge; beyond that it stays clamped
         const pct = Math.max(-50, Math.min(50, (offset / 90) * 50));

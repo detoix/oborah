@@ -22,6 +22,7 @@ interface ARViewportProps {
   buildings: ARBuilding[];
   location: StabilizedLocation;
   selectedId: string | null;
+  onHeadingChange?: (heading: number | null) => void;
   onSelectBuilding: (id: string | null) => void;
   onMoveBuilding: (id: string, position: GeoPoint) => void;
   onRotateBuilding: (id: string, rot: number) => void;
@@ -41,6 +42,7 @@ export function ARViewport({
   buildings,
   location,
   selectedId,
+  onHeadingChange,
   onSelectBuilding,
   onMoveBuilding,
   onRotateBuilding,
@@ -87,6 +89,16 @@ export function ARViewport({
       headingAligned.current = false;
     }
   }, [phase]);
+
+  useEffect(() => {
+    if (!onHeadingChange) return;
+
+    if (sensorFusion.hasInitialized.current) {
+      onHeadingChange(sensorFusion.heading);
+    } else {
+      onHeadingChange(null);
+    }
+  }, [onHeadingChange, sensorFusion.heading, sensorFusion.hasInitialized]);
 
   useEffect(() => {
     if (
@@ -234,8 +246,8 @@ export function ARViewport({
     phase === "gps_acquiring"
       ? location.status === "acquiring"
         ? "Acquiring GPS Signal..."
-        : location.status === "stabilizing"
-          ? `Stabilizing... Stand still (${location.isStationary ? "stationary" : "moving"})`
+        : location.status === "tracking"
+          ? `Locking signal... Stand still (${location.isStationary ? "stationary" : "moving"})`
           : "Acquiring GPS Signal..."
       : null;
 
@@ -303,6 +315,9 @@ export function ARViewport({
       {phase === "calibrating" && (
         <CalibrationOverlay
           offset={calibrationOffset}
+          headingDeg={
+            sensorFusion.hasInitialized.current ? sensorFusion.heading : 0
+          }
           onChange={setCalibrationOffset}
           onConfirm={confirmCalibration}
           onCancel={() => setPhase("gps_acquiring")}
