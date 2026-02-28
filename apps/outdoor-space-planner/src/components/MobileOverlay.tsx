@@ -8,7 +8,7 @@ import React, {
   useState,
 } from "react";
 import { CATALOG_ITEMS, CatalogItem } from "@oborah/catalog";
-import { ChevronLeft, RotateCw, X, Check, Camera } from "lucide-react";
+import { ChevronLeft, ChevronUp, ChevronDown, RotateCw, X, Check, Camera, LocateFixed } from "lucide-react";
 import { SheetSnap, MobileMode, DraftPlacement } from "../hooks/use-planner-ui";
 
 interface MobileOverlayProps {
@@ -22,7 +22,10 @@ interface MobileOverlayProps {
   acceptDraft: () => void;
   rotateDraft: () => void;
   isArMode: boolean;
+  mapBearing: number;
   onToggleArMode: () => void;
+  onLocateMe: () => void;
+  onNudgeAR?: (direction: "up" | "down" | "left" | "right") => void;
 }
 
 type SnapOffsets = Record<SheetSnap, number>;
@@ -96,7 +99,10 @@ export function MobileOverlay({
   acceptDraft,
   rotateDraft,
   isArMode,
+  mapBearing,
   onToggleArMode,
+  onLocateMe,
+  onNudgeAR,
 }: MobileOverlayProps) {
   const [viewportHeight, setViewportHeight] = useState(0);
   const [dragOffset, setDragOffset] = useState<number | null>(null);
@@ -231,6 +237,23 @@ export function MobileOverlay({
 
   return (
     <div className="pointer-events-none fixed inset-0 z-20">
+      {/* Compass needle (AR only) */}
+      {isArMode && (
+        <div className="pointer-events-none absolute left-1/2 top-0 z-30 -translate-x-1/2">
+          <div
+            className="transition-transform duration-150 origin-top"
+            style={{
+              transform: `rotate(${-mapBearing}deg)`,
+              width: 0,
+              height: 0,
+              borderLeft: "6px solid transparent",
+              borderRight: "6px solid transparent",
+              borderTop: "14px solid rgb(5 150 105)",
+            }}
+          />
+        </div>
+      )}
+
       {/* Placement hint */}
       {mobileMode === "edit" && draftPlacement && (
         <p className="pointer-events-none absolute inset-x-4 top-24 z-10 text-center">
@@ -240,24 +263,34 @@ export function MobileOverlay({
         </p>
       )}
 
-      {/* AR toggle (moves with sheet, hidden when expanded) */}
+      {/* Map controls (move with sheet, hidden when expanded) */}
       {!isSheetExpanded && (
       <div
         className={`pointer-events-none fixed inset-x-0 top-0 z-10 flex justify-end px-4 ${sheetTransition}`}
-        style={{ transform: `translateY(calc(${currentOffset}px - 4.5rem))` }}
+        style={{ transform: `translateY(calc(${currentOffset}px - 8.5rem))` }}
       >
-        <button
-          type="button"
-          onClick={onToggleArMode}
-          className="pointer-events-auto flex h-14 w-14 items-center justify-center rounded-full bg-white shadow-lg active:scale-95 transition-all"
-          aria-label={isArMode ? "Exit AR" : "View in AR"}
-        >
-          {isArMode ? (
-            <X className="h-6 w-6 text-red-500" />
-          ) : (
-            <Camera className="h-6 w-6 text-emerald-600" />
-          )}
-        </button>
+        <div className="flex flex-col gap-3">
+          <button
+            type="button"
+            onClick={onLocateMe}
+            className={`pointer-events-auto flex h-14 w-14 items-center justify-center rounded-full bg-white shadow-lg active:scale-95 transition-all ${isArMode ? "invisible" : ""}`}
+            aria-label="Locate me"
+          >
+            <LocateFixed className="h-6 w-6 text-slate-700" />
+          </button>
+          <button
+            type="button"
+            onClick={onToggleArMode}
+            className="pointer-events-auto flex h-14 w-14 items-center justify-center rounded-full bg-white shadow-lg active:scale-95 transition-all"
+            aria-label={isArMode ? "Exit AR" : "View in AR"}
+          >
+            {isArMode ? (
+              <X className="h-6 w-6 text-red-500" />
+            ) : (
+              <Camera className="h-6 w-6 text-emerald-600" />
+            )}
+          </button>
+        </div>
       </div>
       )}
 
@@ -281,8 +314,50 @@ export function MobileOverlay({
             <span className="h-1 w-10 rounded-full bg-black/15" />
           </button>
 
+          {/* AR mode — keyboard-style arrows to nudge scene */}
+          {isArMode && (
+            <div className="flex flex-col items-center gap-1 pb-2">
+              <div className="flex justify-center">
+                <button
+                  type="button"
+                  onClick={() => onNudgeAR?.("up")}
+                  className="grid h-9 w-9 place-items-center rounded-lg bg-white/80 shadow-sm active:scale-95 transition-transform"
+                  aria-label="Nudge up"
+                >
+                  <ChevronUp className="h-4 w-4 text-slate-700" />
+                </button>
+              </div>
+              <div className="flex gap-1">
+                <button
+                  type="button"
+                  onClick={() => onNudgeAR?.("left")}
+                  className="grid h-9 w-9 place-items-center rounded-lg bg-white/80 shadow-sm active:scale-95 transition-transform"
+                  aria-label="Nudge left"
+                >
+                  <ChevronLeft className="h-4 w-4 text-slate-700" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onNudgeAR?.("down")}
+                  className="grid h-9 w-9 place-items-center rounded-lg bg-white/80 shadow-sm active:scale-95 transition-transform"
+                  aria-label="Nudge down"
+                >
+                  <ChevronDown className="h-4 w-4 text-slate-700" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onNudgeAR?.("right")}
+                  className="grid h-9 w-9 place-items-center rounded-lg bg-white/80 shadow-sm active:scale-95 transition-transform rotate-180"
+                  aria-label="Nudge right"
+                >
+                  <ChevronLeft className="h-4 w-4 text-slate-700" />
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* Browse mode */}
-          {mobileMode === "browse" && (
+          {!isArMode && mobileMode === "browse" && (
             <>
               {isSheetExpanded ? (
                 <div className="overflow-y-auto px-4 pb-[calc(1rem+env(safe-area-inset-bottom))]">
@@ -321,7 +396,7 @@ export function MobileOverlay({
           )}
 
           {/* Edit mode */}
-          {mobileMode === "edit" && draftPlacement && (
+          {!isArMode && mobileMode === "edit" && draftPlacement && (
             <div
               className="px-4 pt-1"
               style={{
@@ -373,7 +448,7 @@ export function MobileOverlay({
           )}
 
           {/* Material mode */}
-          {mobileMode === "material" && draftPlacement && (
+          {!isArMode && mobileMode === "material" && draftPlacement && (
             <div
               className="px-4 pt-4"
               style={{

@@ -36,6 +36,7 @@ export default function Home() {
   const [isArMode, setIsArMode] = useState<boolean>(false);
   const resetARSession = useARSessionStore((s) => s.resetSession);
   const [mapOrigin, setMapOrigin] = useState<GeoCenter>(MAP_ORIGIN);
+  const [mapBearing, setMapBearing] = useState(0);
   const stabilized = useStabilizedLocation();
   const stabilizedUserLocation = useMemo(
     () =>
@@ -154,6 +155,7 @@ export default function Home() {
         ? prev
         : view.center,
     );
+    setMapBearing(view.bearing);
   }, []);
 
   const handleMoveBuilding = useCallback(
@@ -285,6 +287,17 @@ export default function Home() {
             acceptDraft={acceptDraft}
             rotateDraft={rotateDraft}
             isArMode={isArMode}
+            mapBearing={mapBearing}
+            onLocateMe={() => {
+              navigator.geolocation.getCurrentPosition(
+                (pos) => {
+                  mapApiRef.current?.flyTo({
+                    center: [pos.coords.longitude, pos.coords.latitude],
+                    zoom: 17,
+                  });
+                },
+              );
+            }}
             onToggleArMode={() => {
               const next = !isArMode;
               setIsArMode(next);
