@@ -41,7 +41,6 @@ export default function Home() {
   const {
     phase,
     stabilizedOrigin,
-    calibrationOffset,
     requestRecalibration,
     setStabilizedOrigin,
     setPhase,
@@ -51,7 +50,6 @@ export default function Home() {
   const sensorFusion = useSensorFusion({
     enabled: true, // Run EKF globally to power both Map and AR
     stabilizedOrigin: stabilizedOrigin || stabilized.position,
-    calibrationOffset,
     onDriftExceeded: requestRecalibration,
   });
 

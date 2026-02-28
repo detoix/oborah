@@ -417,7 +417,7 @@ export function ARViewport({
               calibrationOffset={calibrationOffset}
               sensorFusionOffset={
                 phase === "tracking" || phase === "recalibrating"
-                  ? { x: 0, z: 0 } // Disabled as per user request (originally sensorFusion.estimatedOffset)
+                  ? sensorFusion.estimatedOffset
                   : undefined
               }
               onSelectBuilding={onSelectBuilding}

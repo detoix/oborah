@@ -3,7 +3,6 @@
 import { useEffect, useRef, useCallback, useState } from "react";
 import type { GeoPoint } from "@oborah/geo";
 import { calculateLocalCartesianOffset, offsetGeoPoint } from "@oborah/geo";
-import type { CalibrationOffset } from "@/stores/use-ar-session-store";
 
 export interface SensorFusionResult {
   /** The filtered cartesian offset (X, Z) relative to the stabilized origin */
@@ -21,7 +20,6 @@ export interface SensorFusionResult {
 interface SensorFusionOptions {
   enabled: boolean;
   stabilizedOrigin: GeoPoint | null;
-  calibrationOffset: CalibrationOffset;
   onDriftExceeded: () => void;
 }
 
@@ -75,7 +73,6 @@ class EKF2D {
 export function useSensorFusion({
   enabled,
   stabilizedOrigin,
-  calibrationOffset,
   onDriftExceeded,
 }: SensorFusionOptions): SensorFusionResult {
   const [result, setResult] = useState<SensorFusionResult>({
@@ -158,17 +155,13 @@ export function useSensorFusion({
         stabilizedOrigin,
         gpsPoint,
       );
-      const gpsCalibrated = {
-        x: gpsLocal.x + calibrationOffset.x,
-        z: gpsLocal.z + calibrationOffset.z,
-      };
 
       const ekf = ekfRef.current;
-      ekf.updateGPS(gpsCalibrated.x, gpsCalibrated.z, accuracy);
+      ekf.updateGPS(gpsLocal.x, gpsLocal.z, accuracy);
 
       // Drift computation (if IMU drifts > 15m from the GPS)
       const divergence = Math.sqrt(
-        (gpsCalibrated.x - ekf.x) ** 2 + (gpsCalibrated.z - ekf.z) ** 2,
+        (gpsLocal.x - ekf.x) ** 2 + (gpsLocal.z - ekf.z) ** 2,
       );
       confidenceRef.current = Math.max(0, 1 - divergence / DIVERGENCE_MAX);
 
@@ -176,14 +169,14 @@ export function useSensorFusion({
       // the confidence decays instantly when divergence is high, relying entirely on GPS pings
       confidenceRef.current *= 0.9;
       // Snap EKF to GPS instantly
-      ekf.x = gpsCalibrated.x;
-      ekf.z = gpsCalibrated.z;
+      ekf.x = gpsLocal.x;
+      ekf.z = gpsLocal.z;
 
       if (confidenceRef.current < CONFIDENCE_THRESHOLD) {
         onDriftExceededRef.current();
       }
     },
-    [stabilizedOrigin, calibrationOffset],
+    [stabilizedOrigin],
   );
 
   // Event hookups
@@ -216,10 +209,8 @@ export function useSensorFusion({
 
       let globalPos: GeoPoint | null = null;
       if (stabilizedOrigin) {
-        // Reverse the EKF's X/Z tracking back into LatLng using the origin and the AR calibration
-        const calibratedX = ekf.x - calibrationOffset.x;
-        const calibratedZ = ekf.z - calibrationOffset.z;
-        globalPos = offsetGeoPoint(stabilizedOrigin, calibratedX, calibratedZ);
+        // Reverse the EKF's X/Z tracking back into LatLng using the origin
+        globalPos = offsetGeoPoint(stabilizedOrigin, ekf.x, ekf.z);
       }
 
       setResult((prev) => ({
@@ -240,13 +231,7 @@ export function useSensorFusion({
       if (watchId !== undefined) navigator.geolocation.clearWatch(watchId);
       if (updateIntervalRef.current) clearInterval(updateIntervalRef.current);
     };
-  }, [
-    enabled,
-    handleOrientation,
-    applyGpsCorrection,
-    stabilizedOrigin,
-    calibrationOffset,
-  ]);
+  }, [enabled, handleOrientation, applyGpsCorrection, stabilizedOrigin]);
 
   // Reset EKF on re-enable
   useEffect(() => {
