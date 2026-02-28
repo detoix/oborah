@@ -25,17 +25,14 @@ interface SensorFusionOptions {
   onDriftExceeded: () => void;
 }
 
-// ----------------------------------------------------
-// ----------------------------------------------------
-// EXTENDED KALMAN FILTER (EKF) TUNING CONSTANTS
-// Tweak these if the AR models slide too much or jitter
-// ----------------------------------------------------
 // EXTENDED KALMAN FILTER (EKF) TUNING CONSTANTS
 // Tweak these if the AR models slide too much or jitter
 // ----------------------------------------------------
 /** Measurement Noise ($R$) Multiplier: How much we trust the GPS `accuracy` param.
- * Higher = we distrust the GPS and heavily smooth it. */
-const GPS_NOISE_MULTIPLIER = 1.5;
+ * By setting this extremely high (25.0) for a pure GPS tracker, we force the Kalman Filter
+ * to act as a sluggish low-pass filter. Random GPS jumps of 2-5 meters are almost entirely ignored,
+ * which fixes "couch drifting". The tradeoff is a 1-2 second lag when you actually start walking. */
+const GPS_NOISE_MULTIPLIER = 25.0;
 
 // Drift Confidence
 const DIVERGENCE_MAX = 15; // meters at which confidence = 0
@@ -68,8 +65,10 @@ class EKF2D {
     // Note: We don't directly update velocity from GPS jumps, we let the IMU control velocity.
 
     // Update Covariance (Uncertainty shrinks as we saw real GPS)
-    this.p_x = (1 - k_x) * this.p_x;
-    this.p_z = (1 - k_z) * this.p_z;
+    // We floor p_x/p_z to a small minimum (e.g. 0.5) so the filter doesn't become totally
+    // rigid and stop tracking real walking movements over time.
+    this.p_x = Math.max(0.5, (1 - k_x) * this.p_x);
+    this.p_z = Math.max(0.5, (1 - k_z) * this.p_z);
   }
 }
 
