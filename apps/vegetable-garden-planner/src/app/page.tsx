@@ -19,6 +19,7 @@ import { useARSessionStore } from "@/stores/use-ar-session-store";
 import { usePlannerUI } from "@/hooks/use-planner-ui";
 import { useMapDrop } from "@/hooks/use-map-drop";
 import { useStabilizedLocation } from "@/hooks/use-stabilized-location";
+import { useUrlState } from "@/hooks/use-url-state";
 
 const MAP_ORIGIN: GeoCenter = {
   lng: 19.945,
@@ -58,6 +59,8 @@ export default function Home() {
     isInteractingWithModel,
     setInteractingWithModel,
   } = usePlannerStore();
+
+  useUrlState();
 
   const {
     sheetSnap,

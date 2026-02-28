@@ -22,6 +22,7 @@ interface PlannerStore {
   isDraggingFromLibrary: boolean;
   isInteractingWithModel: boolean;
 
+  setPlacedBuildings: (buildings: PlacedBuildingOnMap[]) => void;
   setDraggingFromLibrary: (v: boolean) => void;
   setInteractingWithModel: (v: boolean) => void;
   addBuilding: (building: NewPlacedBuilding) => void;
@@ -32,13 +33,14 @@ interface PlannerStore {
 }
 
 function createBuildingId() {
-  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+  if (
+    typeof crypto !== "undefined" &&
+    typeof crypto.randomUUID === "function"
+  ) {
     return `map-building-${crypto.randomUUID()}`;
   }
 
-  return `map-building-${Date.now()}-${Math.random()
-    .toString(36)
-    .slice(2, 8)}`;
+  return `map-building-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
 export const usePlannerStore = create<PlannerStore>((set) => ({
@@ -47,6 +49,7 @@ export const usePlannerStore = create<PlannerStore>((set) => ({
   isDraggingFromLibrary: false,
   isInteractingWithModel: false,
 
+  setPlacedBuildings: (buildings) => set({ placedBuildings: buildings }),
   setDraggingFromLibrary: (v) => set({ isDraggingFromLibrary: v }),
   setInteractingWithModel: (v) => set({ isInteractingWithModel: v }),
 
