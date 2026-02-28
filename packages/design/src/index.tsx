@@ -18,6 +18,8 @@ export interface DesignLayerProps {
   buildings: DesignBuilding[];
   selectedId: string | null;
   origin: GeoCenter;
+  interactive?: boolean;
+  requireSelectionForDrag?: boolean;
   onMoveBuilding: (id: string, position: GeoPoint) => void;
   onRotateBuilding: (id: string, rotation: number) => void;
   onSelectBuilding: (id: string | null) => void;
@@ -29,6 +31,8 @@ export function DesignLayer({
   buildings = [],
   selectedId = null,
   origin,
+  interactive = true,
+  requireSelectionForDrag = false,
   onMoveBuilding = () => {},
   onRotateBuilding = () => {},
   onSelectBuilding = () => {},
@@ -47,6 +51,8 @@ export function DesignLayer({
           position={b.position}
           rotationY={b.rotationY}
           isSelected={b.id === selectedId}
+          interactive={interactive}
+          requireSelectionForDrag={requireSelectionForDrag}
           visualConfig={b.visualConfig}
           origin={origin}
           onMove={(lng, lat) => onMoveBuilding(b.id, { lng, lat })}

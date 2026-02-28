@@ -9,6 +9,8 @@ interface MapViewportProps {
   selectedId: string | null;
   origin: GeoCenter;
   showGeocoder?: boolean;
+  designInteractive?: boolean;
+  requireSelectionForDrag?: boolean;
   enableUserLocationAnchor?: boolean;
   userLocationAnchor?: GeoPoint | null;
   onUserLocationAnchorCreate?: (location: GeoPoint) => void;
@@ -31,6 +33,8 @@ export function MapViewport({
   selectedId,
   origin,
   showGeocoder = true,
+  designInteractive = true,
+  requireSelectionForDrag = false,
   enableUserLocationAnchor = false,
   userLocationAnchor = null,
   onUserLocationAnchorCreate,
@@ -75,6 +79,8 @@ export function MapViewport({
         buildings={buildings}
         selectedId={selectedId}
         origin={origin}
+        interactive={designInteractive}
+        requireSelectionForDrag={requireSelectionForDrag}
         onMoveBuilding={onMoveBuilding}
         onRotateBuilding={onRotateBuilding}
         onSelectBuilding={onSelectBuilding}

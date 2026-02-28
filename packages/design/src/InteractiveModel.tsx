@@ -21,6 +21,8 @@ interface InteractiveModelProps {
   position: GeoPoint;
   rotationY: number;
   isSelected: boolean;
+  interactive?: boolean;
+  requireSelectionForDrag?: boolean;
   visualConfig?: VisualConfig;
   origin: GeoCenter;
   onMove: (lng: number, lat: number) => void;
@@ -91,6 +93,8 @@ export function InteractiveModel({
   position: lngLat,
   rotationY,
   isSelected,
+  interactive = true,
+  requireSelectionForDrag = false,
   visualConfig,
   origin,
   onMove,
@@ -167,7 +171,11 @@ export function InteractiveModel({
   const handlePointerDown = useCallback(
     (e: ThreeEvent<PointerEvent>) => {
       e.stopPropagation();
-      onClick(); // Snap selection on down
+      if (requireSelectionForDrag && !isSelected) {
+        onClick(); // First tap selects on mobile; drag starts on next gesture
+        return;
+      }
+      onClick();
 
       const hitPoint = raycastToGround(e.ray);
       if (!hitPoint || !groupRef.current) return;
@@ -180,7 +188,7 @@ export function InteractiveModel({
         e.nativeEvent.target as PointerCaptureTarget | null
       )?.setPointerCapture?.(e.nativeEvent.pointerId);
     },
-    [onClick, raycastToGround, onInteractionStart],
+    [requireSelectionForDrag, isSelected, onClick, raycastToGround, onInteractionStart],
   );
 
   const handlePointerMove = useCallback(
@@ -280,9 +288,9 @@ export function InteractiveModel({
   return (
     <group ref={groupRef} position={position} rotation={[0, rotationY, 0]}>
       <mesh
-        onPointerDown={handlePointerDown}
-        onPointerMove={handlePointerMove}
-        onPointerUp={handlePointerUp}
+        onPointerDown={interactive ? handlePointerDown : undefined}
+        onPointerMove={interactive ? handlePointerMove : undefined}
+        onPointerUp={interactive ? handlePointerUp : undefined}
         castShadow
         receiveShadow
       >
@@ -315,7 +323,7 @@ export function InteractiveModel({
         </mesh>
       )}
 
-      {isSelected && (
+      {isSelected && interactive && (
         <mesh
           position={[0, 0.1, 0]}
           rotation={[-Math.PI / 2, 0, 0]}

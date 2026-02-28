@@ -263,16 +263,32 @@ export default function Map({
                   });
                 }}
                 style={{
-                  width: 14,
-                  height: 14,
+                  width: 42,
+                  height: 42,
                   borderRadius: "9999px",
-                  border: "2px solid white",
-                  background: "#007cbf",
-                  boxShadow: "0 0 0 4px rgba(0,124,191,0.25)",
+                  border: "none",
+                  background: "transparent",
                   cursor: enableUserLocationAnchor ? "pointer" : "default",
                   pointerEvents: "auto",
+                  display: "grid",
+                  placeItems: "center",
+                  padding: 0,
                 }}
-              />
+              >
+                <span
+                  style={{
+                    width: enableUserLocationAnchor ? 10 : 14,
+                    height: enableUserLocationAnchor ? 10 : 14,
+                    borderRadius: "9999px",
+                    border: "2px solid white",
+                    background: "#007cbf",
+                    opacity: enableUserLocationAnchor ? 0.72 : 1,
+                    boxShadow: enableUserLocationAnchor
+                      ? "0 0 0 6px rgba(0,124,191,0.14)"
+                      : "0 0 0 4px rgba(0,124,191,0.25)",
+                  }}
+                />
+              </button>
             </Marker>
           </>
         )}
@@ -293,12 +309,14 @@ export default function Map({
             <div
               aria-label="AR anchor marker"
               style={{
-                width: 16,
-                height: 16,
+                width: 20,
+                height: 20,
                 borderRadius: "9999px",
-                border: "2px solid white",
+                border: "3px solid white",
                 background: "#f97316",
-                boxShadow: "0 0 0 5px rgba(249,115,22,0.25)",
+                boxShadow:
+                  "0 0 0 7px rgba(249,115,22,0.36), 0 0 0 14px rgba(249,115,22,0.15)",
+                cursor: "grab",
                 pointerEvents: "auto",
               }}
             />

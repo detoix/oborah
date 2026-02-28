@@ -7,7 +7,7 @@ import React, {
   useRef,
   useState,
 } from "react";
-import type { GeoCenter, GeoPoint } from "@oborah/geo";
+import { offsetGeoPoint, type GeoCenter, type GeoPoint } from "@oborah/geo";
 import { CATALOG_ITEMS } from "@oborah/catalog";
 import type { MapApi, MapViewState } from "@oborah/map";
 import { MapViewport } from "@/components/MapViewport";
@@ -185,6 +185,17 @@ export default function Home() {
     [draftPlacement, isInteractingWithModel, updateDraftPosition],
   );
 
+  const handleMobileMapClick = useCallback(
+    (coords: GeoPoint) => {
+      if (isArMode) {
+        setArAnchorLocation(coords);
+        return;
+      }
+      handleMapClickForPlacement(coords);
+    },
+    [isArMode, handleMapClickForPlacement],
+  );
+
   const suppressNextPlacementTap = useCallback(() => {
     suppressMapPlacementUntilRef.current = performance.now() + 250;
   }, []);
@@ -217,6 +228,15 @@ export default function Home() {
       rotateBuilding(id, rotationY);
     },
     [rotateBuilding, updateDraftRotation],
+  );
+
+  const handleARNavigateByMeters = useCallback(
+    (eastMeters: number, northMeters: number) => {
+      const base = arAnchorLocation ?? stabilized.position;
+      if (!base) return;
+      setArAnchorLocation(offsetGeoPoint(base, eastMeters, northMeters));
+    },
+    [arAnchorLocation, stabilized.position],
   );
 
   const handleSelectBuilding = useCallback(
@@ -304,6 +324,8 @@ export default function Home() {
       selectedId={activeSelectedId}
       origin={mapOrigin}
       showGeocoder={!isArMode}
+      designInteractive={!isArMode}
+      requireSelectionForDrag={true}
       enableUserLocationAnchor={isArMode}
       userLocationAnchor={isArMode ? arAnchorLocation : null}
       onUserLocationAnchorCreate={setArAnchorLocation}
@@ -314,7 +336,7 @@ export default function Home() {
         mapApiRef.current = api;
       }}
       onCanvasPointerMissed={() => handleSelectBuilding(null)}
-      onMapClick={handleMapClickForPlacement}
+      onMapClick={handleMobileMapClick}
       onMoveBuilding={handleMoveBuilding}
       onRotateBuilding={handleRotateBuilding}
       onSelectBuilding={handleSelectBuilding}
@@ -346,6 +368,8 @@ export default function Home() {
               buildings={buildingsWithConfig}
               selectedId={selectedBuildingId}
               origin={mapOrigin}
+              designInteractive={true}
+              requireSelectionForDrag={false}
               isInteractingWithModel={isInteractingWithModel}
               onViewChange={handleMapViewChange}
               onMapReady={(api) => {
@@ -405,6 +429,7 @@ export default function Home() {
                 location={arEffectiveLocation}
                 compass={compass}
                 onHeadingChange={setArCompassHeading}
+                onNavigateByMeters={handleARNavigateByMeters}
                 onSelectBuilding={handleSelectBuilding}
                 onMoveBuilding={handleMoveBuilding}
                 onRotateBuilding={handleRotateBuilding}
@@ -465,6 +490,9 @@ export default function Home() {
               setIsArMode(next);
               if (next) {
                 setHasArEverBeenEnabled(true);
+                if (!arAnchorLocation && stabilized.position) {
+                  setArAnchorLocation(stabilized.position);
+                }
               }
               window.requestAnimationFrame(() => {
                 mapApiRef.current?.resize?.();

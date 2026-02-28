@@ -27,6 +27,7 @@ export interface ARLayerProps {
   buildings: ARBuilding[];
   livePosition: GeoCenter; // The user's live Kalman position
   selectedId: string | null;
+  interactive?: boolean;
   calibrationOffset?: ARCalibrationOffset;
   onSelectBuilding: (id: string | null) => void;
   onMoveBuilding: (id: string, position: GeoPoint) => void;
@@ -39,6 +40,7 @@ export function ARLayer({
   buildings = [],
   livePosition,
   selectedId = null,
+  interactive = true,
   calibrationOffset,
   onSelectBuilding = () => {},
   onMoveBuilding = () => {},
@@ -86,6 +88,7 @@ export function ARLayer({
               origin={b.position}
               rotationY={b.rotationY}
               isSelected={b.id === selectedId}
+              interactive={interactive}
               visualConfig={b.visualConfig}
               onMove={(lng: number, lat: number) =>
                 onMoveBuilding(b.id, { lng, lat })

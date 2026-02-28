@@ -23,6 +23,7 @@ interface ARViewportProps {
   compass: CompassResult;
   selectedId: string | null;
   onHeadingChange?: (heading: number | null) => void;
+  onNavigateByMeters?: (eastMeters: number, northMeters: number) => void;
   onSelectBuilding: (id: string | null) => void;
   onMoveBuilding: (id: string, position: GeoPoint) => void;
   onRotateBuilding: (id: string, rot: number) => void;
@@ -46,6 +47,7 @@ export function ARViewport({
   compass,
   selectedId,
   onHeadingChange,
+  onNavigateByMeters,
   onSelectBuilding,
   onMoveBuilding,
   onRotateBuilding,
@@ -59,8 +61,7 @@ export function ARViewport({
   const [error, setError] = useState<string | null>(null);
   const [needsPermission, setNeedsPermission] = useState(false);
 
-  const { phase, calibrationOffset, setCalibrationOffset, setPhase } =
-    useARSessionStore();
+  const { phase, calibrationOffset, setPhase } = useARSessionStore();
 
   // One-time compass alignment for DeviceOrientationControls
   const headingAligned = useRef(false);
@@ -206,7 +207,7 @@ export function ARViewport({
     onInteractionEnd();
   }, [onInteractionEnd]);
 
-  function nudgeCalibration(direction: "up" | "down" | "left" | "right") {
+  function navigateUser(direction: "up" | "down" | "left" | "right") {
     let dx = 0;
     let dy = 0;
 
@@ -221,11 +222,7 @@ export function ARViewport({
     const worldDx = dx * Math.cos(headingRad) - dy * Math.sin(headingRad);
     const worldDz = dx * Math.sin(headingRad) + dy * Math.cos(headingRad);
 
-    setCalibrationOffset({
-      ...calibrationOffset,
-      x: calibrationOffset.x + worldDx,
-      z: calibrationOffset.z + worldDz,
-    });
+    onNavigateByMeters?.(worldDx, -worldDz);
   }
 
   return (
@@ -295,6 +292,7 @@ export function ARViewport({
               buildings={debugBuildings}
               livePosition={activeOrigin}
               selectedId={selectedId}
+              interactive={false}
               calibrationOffset={calibrationOffset}
               onSelectBuilding={onSelectBuilding}
               onMoveBuilding={onMoveBuilding}
@@ -314,7 +312,7 @@ export function ARViewport({
           <div className="pointer-events-none absolute inset-0 z-30">
             <button
               type="button"
-              onClick={() => nudgeCalibration("up")}
+              onClick={() => navigateUser("up")}
               className="pointer-events-auto absolute left-1/2 top-2 grid h-10 w-10 -translate-x-1/2 place-items-center rounded-full bg-white/90 shadow-sm active:scale-95 transition-transform"
               aria-label="Move up"
             >
@@ -322,7 +320,7 @@ export function ARViewport({
             </button>
             <button
               type="button"
-              onClick={() => nudgeCalibration("left")}
+              onClick={() => navigateUser("left")}
               className="pointer-events-auto absolute left-2 top-1/2 grid h-10 w-10 -translate-y-1/2 place-items-center rounded-full bg-white/90 shadow-sm active:scale-95 transition-transform"
               aria-label="Move left"
             >
@@ -330,7 +328,7 @@ export function ARViewport({
             </button>
             <button
               type="button"
-              onClick={() => nudgeCalibration("right")}
+              onClick={() => navigateUser("right")}
               className="pointer-events-auto absolute right-2 top-1/2 grid h-10 w-10 -translate-y-1/2 place-items-center rounded-full bg-white/90 shadow-sm active:scale-95 transition-transform"
               aria-label="Move right"
             >
@@ -338,7 +336,7 @@ export function ARViewport({
             </button>
             <button
               type="button"
-              onClick={() => nudgeCalibration("down")}
+              onClick={() => navigateUser("down")}
               className="pointer-events-auto absolute bottom-2 left-1/2 grid h-10 w-10 -translate-x-1/2 place-items-center rounded-full bg-white/90 shadow-sm active:scale-95 transition-transform"
               aria-label="Move down"
             >
