@@ -39,9 +39,9 @@ const GPS_NOISE_MULTIPLIER = 1.5;
 
 // Zero Velocity Update (ZUPT) Constants
 /** If accelerometer magnitude is within this range of 9.81m/s^2, we assume the user is physically standing still */
-const ZUPT_ACCEL_THRESHOLD = 0.5;
+const ZUPT_ACCEL_THRESHOLD = 1.2;
 /** How long the user must be "still" before we zero-out the velocity vector */
-const ZUPT_TIME_MS = 400;
+const ZUPT_TIME_MS = 250;
 
 // Drift Confidence
 const DIVERGENCE_MAX = 15; // meters at which confidence = 0
@@ -127,12 +127,16 @@ class EKF2D {
         );
         return;
       }
+
+      // Iron Grip: Since we are physically not moving, our position uncertainty drops drastically.
+      this.p_x *= 0.5;
+      this.p_z *= 0.5;
     }
 
     // Measurement noise based on GPS API
-    // If standing still, we inflate the measurement noise by 5x (Deep Lock).
+    // If standing still, we inflate the measurement noise by 15x (Deep Lock).
     // This forces the filter to move very, very slowly toward the noisy GPS, mathematically finding the true average center.
-    const deepLockMultiplier = isStandingStill ? 5.0 : 1.0;
+    const deepLockMultiplier = isStandingStill ? 15.0 : 1.0;
     const r =
       measAccuracy * measAccuracy * GPS_NOISE_MULTIPLIER * deepLockMultiplier;
 

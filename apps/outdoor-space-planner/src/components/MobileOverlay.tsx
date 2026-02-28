@@ -242,19 +242,26 @@ export function MobileOverlay({
         if (compassHeading === null) return null;
 
         const heading = ((compassHeading % 360) + 360) % 360;
-        const roundedHeading = Math.round(heading) % 360;
         // Normalize heading to -180..180 so the needle slides left/right
-        let offset = roundedHeading;
+        let offset = heading;
         if (offset > 180) offset -= 360;
-        if (roundedHeading === 0) offset = 0;
+        if (Math.abs(offset) < 0.5) offset = 0;
+        const absOffset = Math.abs(offset);
 
         // Map degrees to viewport percentage (clamp so it doesn't fly off screen)
         // At ±90° the needle reaches the edge; beyond that it stays clamped
         const pct = Math.max(-50, Math.min(50, (offset / 90) * 50));
+        // Fade out as user turns away from north; fully hidden at 180° (south)
+        const visibility = Math.max(0, Math.min(1, 1 - absOffset / 180));
+        if (visibility <= 0.02) return null;
         return (
           <div
             className="pointer-events-none absolute top-0 z-30 transition-all duration-150"
-            style={{ left: `calc(50% + ${-pct}%)`, transform: "translateX(-50%)" }}
+            style={{
+              left: `calc(50% + ${-pct}%)`,
+              transform: `translateX(-50%) scale(${0.85 + visibility * 0.15})`,
+              opacity: visibility,
+            }}
           >
             <div
               style={{
