@@ -19,7 +19,7 @@ const MIN_ACCURACY = 20; // meters - absolutely discard raw readings worse than 
 const OUTLIER_SPEED_THRESHOLD = 7; // m/s - discard points implying physically impossible speed
 
 // Kalman Filter Constants
-const PROCESS_NOISE_Q = 0.5; // Estimated meters/sec the user might actually move
+const PROCESS_NOISE_Q = 0.1; // Estimated meters/sec the user might actually move
 
 class KalmanFilter2D {
   public lat: number;
