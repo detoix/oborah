@@ -237,22 +237,32 @@ export function MobileOverlay({
 
   return (
     <div className="pointer-events-none fixed inset-0 z-20">
-      {/* Compass needle (AR only) */}
-      {isArMode && (
-        <div className="pointer-events-none absolute left-1/2 top-0 z-30 -translate-x-1/2">
+      {/* North needle (AR only) — centered when facing north, slides sideways otherwise */}
+      {isArMode && (() => {
+        // Normalize bearing to -180..180 so the needle slides left/right
+        let offset = ((mapBearing % 360) + 360) % 360;
+        if (offset > 180) offset -= 360;
+        // Map degrees to viewport percentage (clamp so it doesn't fly off screen)
+        // At ±90° the needle reaches the edge; beyond that it stays clamped
+        const pct = Math.max(-50, Math.min(50, (offset / 90) * 50));
+        return (
           <div
-            className="transition-transform duration-150 origin-top"
-            style={{
-              transform: `rotate(${-mapBearing}deg)`,
-              width: 0,
-              height: 0,
-              borderLeft: "6px solid transparent",
-              borderRight: "6px solid transparent",
-              borderTop: "14px solid rgb(5 150 105)",
-            }}
-          />
-        </div>
-      )}
+            className="pointer-events-none absolute top-0 z-30 transition-all duration-150"
+            style={{ left: `calc(50% + ${-pct}%)`, transform: "translateX(-50%)" }}
+          >
+            <div
+              style={{
+                width: 0,
+                height: 0,
+                borderLeft: "6px solid transparent",
+                borderRight: "6px solid transparent",
+                borderTop: "14px solid rgb(5 150 105)",
+              }}
+            />
+            <p className="mt-0.5 text-center text-[8px] font-bold text-emerald-700">N</p>
+          </div>
+        );
+      })()}
 
       {/* Placement hint */}
       {mobileMode === "edit" && draftPlacement && (
