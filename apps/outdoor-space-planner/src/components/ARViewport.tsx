@@ -236,10 +236,12 @@ export function ARViewport({
   const statusText =
     phase === "gps_acquiring"
       ? location.status === "acquiring"
-        ? "Acquiring GPS Signal..."
+        ? "Finding GPS satellites..."
         : location.status === "tracking"
-          ? `Locking signal... Stand still (${location.isStationary ? "stationary" : "moving"})`
-          : "Acquiring GPS Signal..."
+          ? location.isStationary
+            ? "Locking position..."
+            : "Please stand still to lock position"
+          : "Finding GPS satellites..."
       : null;
 
   // The origin to use for ARLayer
