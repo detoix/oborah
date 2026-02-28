@@ -45,14 +45,10 @@ export default function Home() {
 
   // Transition to tracking as soon as we have a GPS fix
   useEffect(() => {
-    if (
-      stabilized.isStationary &&
-      stabilized.position &&
-      phase === "gps_acquiring"
-    ) {
+    if (stabilized.position && phase === "gps_acquiring") {
       setPhase("tracking");
     }
-  }, [stabilized.isStationary, stabilized.position, phase, setPhase]);
+  }, [stabilized.position, phase, setPhase]);
 
   // The blue dot on the map = single GPS source of truth
   const stabilizedUserLocation = useMemo(

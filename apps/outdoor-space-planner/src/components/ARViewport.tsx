@@ -102,16 +102,12 @@ export function ARViewport({
     }
   }, [phase, compass, onHeadingChange]);
 
-  // Phase transitions based on GPS stabilization status
+  // Phase transitions — go to tracking as soon as we have a GPS fix
   useEffect(() => {
-    if (
-      location.isStationary &&
-      location.position &&
-      phase === "gps_acquiring"
-    ) {
+    if (location.position && phase === "gps_acquiring") {
       Promise.resolve().then(() => setPhase("tracking"));
     }
-  }, [location.isStationary, location.position, phase, setPhase]);
+  }, [location.position, phase, setPhase]);
 
   // Derived error
   const combinedError = error || location.error;
@@ -186,16 +182,7 @@ export function ARViewport({
   }, []);
 
   // Status text for acquiring phase
-  const statusText =
-    phase === "gps_acquiring"
-      ? location.status === "acquiring"
-        ? "Finding GPS satellites..."
-        : location.status === "tracking"
-          ? location.isStationary
-            ? "Locking position..."
-            : "Please stand still to lock position"
-          : "Finding GPS satellites..."
-      : null;
+  const statusText = phase === "gps_acquiring" ? "Finding GPS signal..." : null;
 
   // The origin to use for ARLayer
   const activeOrigin = location.position;
