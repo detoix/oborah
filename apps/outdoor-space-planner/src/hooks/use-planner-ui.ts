@@ -9,7 +9,7 @@ import type {
 import type { GeoPoint } from "@oborah/geo";
 import type { MapApi } from "@oborah/map";
 
-export type SheetSnap = "collapsed" | "half" | "full";
+export type SheetSnap = "collapsed" | "full";
 export type MobileMode = "browse" | "edit" | "material";
 
 export type DraftPlacement = {

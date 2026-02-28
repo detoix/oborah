@@ -141,8 +141,7 @@
 }
 
 .maplibregl-ctrl-top-left .maplibregl-ctrl {
-  margin: 12px 16px;
-  width: calc(100% - 32px);
+  width: calc(100% - 20px);
   max-width: none;
   pointer-events: auto;
 }
