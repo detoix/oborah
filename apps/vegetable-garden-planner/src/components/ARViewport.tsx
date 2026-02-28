@@ -115,7 +115,7 @@ export function ARViewport({
   // Phase transitions based on GPS stabilization status
   useEffect(() => {
     if (
-      location.status === "anchored" &&
+      location.isStationary &&
       location.position &&
       phase === "gps_acquiring"
     ) {
@@ -124,7 +124,7 @@ export function ARViewport({
       Promise.resolve().then(() => setPhase("calibrating"));
     }
   }, [
-    location.status,
+    location.isStationary,
     location.position,
     phase,
     setStabilizedOrigin,
@@ -141,11 +141,11 @@ export function ARViewport({
     }
   }, [sensorFusion.confidence, phase, setDriftConfidence]);
 
-  // Recalibration: wait for a fresh anchored lock before re-locking
+  // Recalibration: when stationary again after drift exceeded, re-lock
   useEffect(() => {
     if (
       phase === "recalibrating" &&
-      location.status === "anchored" &&
+      location.isStationary &&
       location.position
     ) {
       setStabilizedOrigin(location.position);
@@ -153,7 +153,7 @@ export function ARViewport({
     }
   }, [
     phase,
-    location.status,
+    location.isStationary,
     location.position,
     setStabilizedOrigin,
     confirmCalibration,
